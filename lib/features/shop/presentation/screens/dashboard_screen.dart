@@ -4,7 +4,9 @@ import '../../reports/presentation/bloc/report_bloc.dart';
 import '../../inventory/presentation/bloc/inventory_bloc.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final void Function(int)? onNavigate;
+
+  const DashboardScreen({super.key, this.onNavigate});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -31,8 +33,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 24),
             BlocBuilder<ReportBloc, ReportState>(
               builder: (context, state) {
-                final sales = state is DailySummaryLoaded ? state.summary['total'] ?? 0 : 0.0;
-                final trxCount = state is DailySummaryLoaded ? state.summary['count'] ?? 0 : 0.0;
+                final data = state is ReportDataState ? state : null;
+                final sales = data?.dailySummary?['total'] ?? 0.0;
+                final trxCount = data?.dailySummary?['count'] ?? 0.0;
 
                 return Row(
                   children: [
@@ -72,15 +75,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               spacing: 16,
               runSpacing: 16,
               children: [
-                _QuickAction(
+              _QuickAction(
                   label: 'New Sale',
                   icon: Icons.add_shopping_cart,
-                  onTap: () {
-                    // This is handled by NavigationRail in DashboardShell
-                  },
+                  onTap: () => widget.onNavigate?.call(1),
                 ),
-                _QuickAction(label: 'Add Product', icon: Icons.add_box, onTap: () {}),
-                _QuickAction(label: 'New Expense', icon: Icons.money_off, onTap: () {}),
+                _QuickAction(
+                  label: 'Add Product',
+                  icon: Icons.add_box,
+                  onTap: () => widget.onNavigate?.call(2),
+                ),
+                _QuickAction(
+                  label: 'New Expense',
+                  icon: Icons.money_off,
+                  onTap: () => widget.onNavigate?.call(4),
+                ),
               ],
             ),
           ],

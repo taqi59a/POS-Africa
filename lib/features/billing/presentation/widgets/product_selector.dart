@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../inventory/presentation/bloc/inventory_bloc.dart';
+import '../../settings/presentation/bloc/settings_bloc.dart';
 import '../bloc/sales_bloc.dart';
 
 class ProductSelector extends StatefulWidget {
@@ -96,13 +97,29 @@ class _ProductSelectorState extends State<ProductSelector> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    'CDF ${product.sellingPrice.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
+                                  Builder(builder: (ctx) {
+                                      final s = ctx.watch<SettingsBloc>().state;
+                                      final cfg = s is SettingsLoaded ? s.settings : <String, String>{};
+                                      final dual = (cfg['dual_currency_enabled'] ?? 'false') == 'true';
+                                      final rate = double.tryParse(cfg['usd_exchange_rate'] ?? '2850') ?? 2850;
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'CDF ${product.sellingPrice.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              color: Theme.of(ctx).colorScheme.primary,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          if (dual)
+                                            Text(
+                                              '\$${(product.sellingPrice / rate).toStringAsFixed(2)}',
+                                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                            ),
+                                        ],
+                                      );
+                                    }),
                                   Text(
                                     'Stock: ${product.stockQuantity.toStringAsFixed(0)}',
                                     style: Theme.of(context).textTheme.bodySmall,

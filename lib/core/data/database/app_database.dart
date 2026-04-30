@@ -148,6 +148,7 @@ class AppDatabase extends _$AppDatabase {
       'time_format': '24h',
       'idle_timeout_minutes': '10',
       'next_invoice_number': '1000',
+      'business_logo_path': '',
     };
     for (final entry in defaults.entries) {
       await into(settings).insert(

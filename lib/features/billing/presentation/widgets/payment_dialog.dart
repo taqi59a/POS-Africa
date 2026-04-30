@@ -4,6 +4,8 @@ import 'package:drift/drift.dart' hide Column;
 import '../bloc/sales_bloc.dart';
 import '../../settings/presentation/bloc/settings_bloc.dart';
 import '../../../../core/data/database/app_database.dart';
+import '../../../../features/auth/presentation/bloc/auth_bloc.dart';
+import 'receipt_dialog.dart';
 
 class PaymentDialog extends StatefulWidget {
   const PaymentDialog({super.key});
@@ -26,15 +28,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
         final settings = settingsState is SettingsLoaded ? settingsState.settings : <String, String>{};
         final exchangeRate = double.tryParse(settings['usd_exchange_rate'] ?? '2850') ?? 2850;
 
+        final dualCurrency = (settings['dual_currency_enabled'] ?? 'false') == 'true';
+
         return BlocConsumer<SalesBloc, SalesState>(
           listener: (context, state) {
-            if (state.lastCompletedSaleId != null) {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Sale #${state.lastCompletedSaleId} completed successfully!')),
-              );
-              // TODO: Open Receipt Preview/Print
-            }
             if (state.error != null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Error: ${state.error}'), backgroundColor: Colors.red),
@@ -42,6 +39,11 @@ class _PaymentDialogState extends State<PaymentDialog> {
             }
           },
           builder: (context, state) {
+            // If sale is complete, swap dialog content to the receipt view
+            if (state.lastSaleReceipt != null) {
+              return ReceiptDialog(receipt: state.lastSaleReceipt!);
+            }
+
             final grandTotalCdf = state.grandTotal;
             final grandTotalUsd = grandTotalCdf / exchangeRate;
             final changeDue = _amountTenderedCdf - grandTotalCdf;
@@ -72,10 +74,11 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             'CDF ${grandTotalCdf.toStringAsFixed(0)}',
                             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                           ),
-                          Text(
-                            '(\$${grandTotalUsd.toStringAsFixed(2)})',
-                            style: const TextStyle(fontSize: 18, color: Colors.grey),
-                          ),
+                          if (dualCurrency)
+                            Text(
+                              '(\$${grandTotalUsd.toStringAsFixed(2)})',
+                              style: const TextStyle(fontSize: 18, color: Colors.grey),
+                            ),
                         ],
                       ),
                     ),
@@ -102,6 +105,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                         Expanded(
                           child: TextField(
                             controller: _cdfController,
+                            autofocus: true,
                             decoration: const InputDecoration(
                               labelText: 'Pay in CDF',
                               border: OutlineInputBorder(),
@@ -110,29 +114,33 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             keyboardType: TextInputType.number,
                             onChanged: (val) {
                               final amount = double.tryParse(val) ?? 0;
-                              _usdController.text = (amount / exchangeRate).toStringAsFixed(2);
+                              if (dualCurrency) {
+                                _usdController.text = (amount / exchangeRate).toStringAsFixed(2);
+                              }
                               setState(() => _amountTenderedCdf = amount);
                             },
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextField(
-                            controller: _usdController,
-                            decoration: const InputDecoration(
-                              labelText: 'Pay in USD',
-                              border: OutlineInputBorder(),
-                              prefixText: '\$ ',
+                        if (dualCurrency) ...[  
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: _usdController,
+                              decoration: const InputDecoration(
+                                labelText: 'Pay in USD',
+                                border: OutlineInputBorder(),
+                                prefixText: '\$ ',
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (val) {
+                                final amountUsd = double.tryParse(val) ?? 0;
+                                final amountCdf = amountUsd * exchangeRate;
+                                _cdfController.text = amountCdf.toStringAsFixed(0);
+                                setState(() => _amountTenderedCdf = amountCdf);
+                              },
                             ),
-                            keyboardType: TextInputType.number,
-                            onChanged: (val) {
-                              final amountUsd = double.tryParse(val) ?? 0;
-                              final amountCdf = amountUsd * exchangeRate;
-                              _cdfController.text = amountCdf.toStringAsFixed(0);
-                              setState(() => _amountTenderedCdf = amountCdf);
-                            },
                           ),
-                        ),
+                        ],
                       ],
                     ),
                     
@@ -174,8 +182,12 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             onPressed: state.isProcessing || _amountTenderedCdf < grandTotalCdf
                                 ? null
                                 : () {
+                                    final authState = context.read<AuthBloc>().state;
+                                    final cashierId = authState is AuthAuthenticated
+                                        ? authState.user.id
+                                        : 1;
                                     context.read<SalesBloc>().add(CompleteSale(
-                                          cashierId: 1, // TODO: Get logged in user ID
+                                          cashierId: cashierId,
                                           exchangeRate: exchangeRate,
                                           grandTotalUsd: grandTotalUsd,
                                           payments: [

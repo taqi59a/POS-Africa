@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injection.dart' as di;
+import 'core/utils/db_backup_utils.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/auth/presentation/bloc/auth_state.dart';
@@ -25,6 +26,7 @@ import 'features/shop/presentation/screens/dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await DbBackupUtils.applyPendingRestoreIfAny();
   await di.initDependencies();
   runApp(const CongoPosApp());
 }
@@ -132,7 +134,9 @@ class _DashboardShellState extends State<DashboardShell> {
   Widget _buildPage(int index) {
     switch (index) {
       case 0:
-        return const DashboardScreen();
+        return DashboardScreen(
+          onNavigate: (index) => setState(() => _selectedIndex = index),
+        );
       case 1:
         return const SalesScreen();
       case 2:

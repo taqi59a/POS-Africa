@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/sales_bloc.dart';
 import '../../settings/presentation/bloc/settings_bloc.dart';
+import '../../../../features/auth/presentation/bloc/auth_bloc.dart';
 import 'payment_dialog.dart';
 
 class SaleSummary extends StatelessWidget {
@@ -13,6 +14,7 @@ class SaleSummary extends StatelessWidget {
       builder: (context, settingsState) {
         final settings = settingsState is SettingsLoaded ? settingsState.settings : <String, String>{};
         final exchangeRate = double.tryParse(settings['usd_exchange_rate'] ?? '2850') ?? 2850;
+        final dualCurrency = (settings['dual_currency_enabled'] ?? 'false') == 'true';
 
         return BlocBuilder<SalesBloc, SalesState>(
           builder: (context, state) {
@@ -55,10 +57,11 @@ class SaleSummary extends StatelessWidget {
                               color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                          Text(
-                            'USD \$${grandTotalUsd.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
+                          if (dualCurrency)
+                            Text(
+                              'USD \$${grandTotalUsd.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
                         ],
                       ),
                     ],
@@ -78,6 +81,7 @@ class SaleSummary extends StatelessWidget {
                                   providers: [
                                     BlocProvider.value(value: context.read<SalesBloc>()),
                                     BlocProvider.value(value: context.read<SettingsBloc>()),
+                                    BlocProvider.value(value: context.read<AuthBloc>()),
                                   ],
                                   child: const PaymentDialog(),
                                 ),

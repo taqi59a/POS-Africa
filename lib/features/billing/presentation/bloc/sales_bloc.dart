@@ -7,6 +7,12 @@ import '../../domain/repositories/sales_repository.dart';
 // MODELS
 // ══════════════════════════════════════════════
 
+/// Sentinel to distinguish "not provided" from null in copyWith.
+class _Unset {
+  const _Unset();
+}
+const _unset = _Unset();
+
 class CartItem extends Equatable {
   final Product product;
   final double quantity;
@@ -30,6 +36,37 @@ class CartItem extends Equatable {
 
   @override
   List<Object?> get props => [product, quantity, discount];
+}
+
+/// Snapshot of a completed sale used to render the receipt.
+class CompletedSaleReceipt {
+  final int saleId;
+  final String transactionNumber;
+  final List<CartItem> items;
+  final double subtotal;
+  final double discount;
+  final double grandTotal;
+  final double grandTotalUsd;
+  final double exchangeRate;
+  final String paymentMethod;
+  final double amountTendered;
+  final double changeDue;
+  final DateTime saleDate;
+
+  const CompletedSaleReceipt({
+    required this.saleId,
+    required this.transactionNumber,
+    required this.items,
+    required this.subtotal,
+    required this.discount,
+    required this.grandTotal,
+    required this.grandTotalUsd,
+    required this.exchangeRate,
+    required this.paymentMethod,
+    required this.amountTendered,
+    required this.changeDue,
+    required this.saleDate,
+  });
 }
 
 // ══════════════════════════════════════════════
@@ -82,6 +119,8 @@ class CompleteSale extends SalesEvent {
 
 class ClearCart extends SalesEvent {}
 
+class DismissSaleReceipt extends SalesEvent {}
+
 // ══════════════════════════════════════════════
 // STATES
 // ══════════════════════════════════════════════
@@ -92,6 +131,7 @@ class SalesState extends Equatable {
   final bool isProcessing;
   final String? error;
   final int? lastCompletedSaleId;
+  final CompletedSaleReceipt? lastSaleReceipt;
 
   const SalesState({
     this.cart = const [],
@@ -99,6 +139,7 @@ class SalesState extends Equatable {
     this.isProcessing = false,
     this.error,
     this.lastCompletedSaleId,
+    this.lastSaleReceipt,
   });
 
   double get subtotal => cart.fold(0, (sum, item) => sum + (item.product.sellingPrice * item.quantity));
@@ -109,20 +150,22 @@ class SalesState extends Equatable {
     List<CartItem>? cart,
     double? globalDiscount,
     bool? isProcessing,
-    String? error,
-    int? lastCompletedSaleId,
+    Object? error = _unset,
+    Object? lastCompletedSaleId = _unset,
+    Object? lastSaleReceipt = _unset,
   }) {
     return SalesState(
       cart: cart ?? this.cart,
       globalDiscount: globalDiscount ?? this.globalDiscount,
       isProcessing: isProcessing ?? this.isProcessing,
-      error: error,
-      lastCompletedSaleId: lastCompletedSaleId,
+      error: error is _Unset ? this.error : error as String?,
+      lastCompletedSaleId: lastCompletedSaleId is _Unset ? this.lastCompletedSaleId : lastCompletedSaleId as int?,
+      lastSaleReceipt: lastSaleReceipt is _Unset ? this.lastSaleReceipt : lastSaleReceipt as CompletedSaleReceipt?,
     );
   }
 
   @override
-  List<Object?> get props => [cart, globalDiscount, isProcessing, error, lastCompletedSaleId];
+  List<Object?> get props => [cart, globalDiscount, isProcessing, error, lastCompletedSaleId, lastSaleReceipt];
 }
 
 // ══════════════════════════════════════════════
@@ -139,6 +182,7 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
     on<ApplyGlobalDiscount>(_onApplyGlobalDiscount);
     on<CompleteSale>(_onCompleteSale);
     on<ClearCart>(_onClearCart);
+    on<DismissSaleReceipt>(_onDismissReceipt);
   }
 
   void _onAddToCart(AddProductToCart event, Emitter<SalesState> emit) {
@@ -206,15 +250,36 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
       )).toList();
 
       final saleId = await _repo.createSale(saleCompanion, lineCompanions, event.payments);
-      
-      emit(state.copyWith(
+
+      final receipt = CompletedSaleReceipt(
+        saleId: saleId,
+        transactionNumber: trxNumber,
+        items: List<CartItem>.from(state.cart),
+        subtotal: state.subtotal,
+        discount: state.totalDiscount,
+        grandTotal: state.grandTotal,
+        grandTotalUsd: event.grandTotalUsd,
+        exchangeRate: event.exchangeRate,
+        paymentMethod: event.payments.isNotEmpty ? event.payments.first.method.value : 'CASH',
+        amountTendered: event.payments.isNotEmpty ? (event.payments.first.amountTendered.value ?? state.grandTotal) : state.grandTotal,
+        changeDue: event.payments.isNotEmpty ? (event.payments.first.changeDue.value ?? 0) : 0,
+        saleDate: DateTime.now(),
+      );
+
+      emit(SalesState(
         isProcessing: false,
         lastCompletedSaleId: saleId,
-        cart: [],
-        globalDiscount: 0,
+        lastSaleReceipt: receipt,
       ));
     } catch (e) {
       emit(state.copyWith(isProcessing: false, error: e.toString()));
     }
+  }
+
+  void _onDismissReceipt(DismissSaleReceipt event, Emitter<SalesState> emit) {
+    emit(SalesState(
+      cart: state.cart,
+      globalDiscount: state.globalDiscount,
+    ));
   }
 }

@@ -76,36 +76,37 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _buildSalesCards(ReportState state) {
-    if (state is ReportLoading) return const LinearProgressIndicator();
-    if (state is DailySummaryLoaded) {
-      final s = state.summary;
-      return Row(
-        children: [
-          _ReportCard(label: 'Transactions', value: s['count']?.toStringAsFixed(0) ?? '0', icon: Icons.receipt),
-          const SizedBox(width: 16),
-          _ReportCard(label: 'Total Revenue', value: 'CDF ${s['total']?.toStringAsFixed(0) ?? '0'}', icon: Icons.payments, color: Colors.green),
-          const SizedBox(width: 16),
-          _ReportCard(label: 'Total Discounts', value: 'CDF ${s['discount']?.toStringAsFixed(0) ?? '0'}', icon: Icons.local_offer, color: Colors.orange),
-        ],
-      );
-    }
-    return const SizedBox();
+    if (state is! ReportDataState) return const LinearProgressIndicator();
+    if (state.isLoadingDaily) return const LinearProgressIndicator();
+    if (state.error != null) return Text('Error: ${state.error}', style: const TextStyle(color: Colors.red));
+    final s = state.dailySummary;
+    if (s == null) return const SizedBox();
+    return Row(
+      children: [
+        _ReportCard(label: 'Transactions', value: s['count']?.toStringAsFixed(0) ?? '0', icon: Icons.receipt),
+        const SizedBox(width: 16),
+        _ReportCard(label: 'Total Revenue', value: 'CDF ${s['total']?.toStringAsFixed(0) ?? '0'}', icon: Icons.payments, color: Colors.green),
+        const SizedBox(width: 16),
+        _ReportCard(label: 'Total Discounts', value: 'CDF ${s['discount']?.toStringAsFixed(0) ?? '0'}', icon: Icons.local_offer, color: Colors.orange),
+      ],
+    );
   }
 
   Widget _buildInventoryCard(ReportState state) {
-    if (state is InventoryValuationLoaded) {
-      return Row(
-        children: [
-          _ReportCard(
-            label: 'Total Inventory Value (Cost)',
-            value: 'CDF ${state.total.toStringAsFixed(0)}',
-            icon: Icons.inventory,
-            color: Colors.blue,
-          ),
-        ],
-      );
-    }
-    return const SizedBox();
+    if (state is! ReportDataState) return const SizedBox();
+    if (state.isLoadingInventory) return const LinearProgressIndicator();
+    final total = state.inventoryValuation;
+    if (total == null) return const SizedBox();
+    return Row(
+      children: [
+        _ReportCard(
+          label: 'Total Inventory Value (Cost)',
+          value: 'CDF ${total.toStringAsFixed(0)}',
+          icon: Icons.inventory,
+          color: Colors.blue,
+        ),
+      ],
+    );
   }
 }
 

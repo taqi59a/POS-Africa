@@ -1,0 +1,209 @@
+name: Build Windows Installer & Portable ZIP
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "App version (e.g. 1.2.0)"
+        required: false
+        default: "1.0.0"
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build on windows-latest
+    runs-on: windows-latest
+
+    env:
+      FLUTTER_CHANNEL: stable
+      BUILD_DIR: build\windows\x64\runner\Release
+      INSTALLER_DIR: build\windows\installer
+      PORTABLE_DIR: build\windows\portable
+
+    steps:
+      # ── 1. Source ───────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Resolve version string ───────────────────────────────────────────
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.version }}" -ne "") {
+            $v = "${{ github.event.inputs.version }}"
+          } elseif ("${{ github.ref }}" -like "refs/tags/v*") {
+            $v = "${{ github.ref_name }}".TrimStart("v")
+          } else {
+            $v = "1.0.${{ github.run_number }}"
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Version: $v"
+
+      # ── 3. Flutter SDK ──────────────────────────────────────────────────────
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Flutter doctor
+        shell: pwsh
+        run: flutter doctor -v
+
+      # ── 4. Dependencies ─────────────────────────────────────────────────────
+      - name: Pub get
+        shell: pwsh
+        run: |
+          flutter config --enable-windows-desktop
+          flutter pub get
+
+      # ── 5. Code generation (Drift) ──────────────────────────────────────────
+      - name: Build runner (generated code)
+        shell: pwsh
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ── 6. Flutter release build ─────────────────────────────────────────────
+      - name: Build Windows release
+        shell: pwsh
+        run: |
+          flutter build windows --release `
+            --build-name "${{ steps.version.outputs.version }}" `
+            --build-number "${{ github.run_number }}"
+
+      # ── 7. Verify build output ───────────────────────────────────────────────
+      - name: Verify EXE exists
+        shell: pwsh
+        run: |
+          $exe = "${{ env.BUILD_DIR }}\pos_africa.exe"
+          if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
+          Write-Host "EXE size: $([math]::Round((Get-Item $exe).Length / 1MB, 2)) MB"
+
+      # ── 8. Download VC++ 2022 redistributable ───────────────────────────────
+      - name: Download VC++ redistributable
+        shell: pwsh
+        run: |
+          $url  = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+          $dest = "windows\installer\vc_redist.x64.exe"
+          Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+          Write-Host "vc_redist downloaded: $([math]::Round((Get-Item $dest).Length / 1MB, 2)) MB"
+
+      # ── 9. Install Inno Setup ────────────────────────────────────────────────
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      # ── 10. Build installer EXE ──────────────────────────────────────────────
+      - name: Build installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "${{ env.INSTALLER_DIR }}" | Out-Null
+          $iss = "windows\installer\pos_africa.iss"
+          & iscc "/DMyAppVersion=${{ steps.version.outputs.version }}" $iss
+          if ($LASTEXITCODE -ne 0) { throw "iscc failed with exit code $LASTEXITCODE" }
+
+      - name: Locate installer EXE
+        id: installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path "${{ env.INSTALLER_DIR }}" -Filter "pos_africa_setup_*.exe" `
+                 | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $exe) { throw "Installer EXE not found" }
+          "path=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "name=$($exe.Name)"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Installer: $($exe.FullName)  ($([math]::Round($exe.Length/1MB,2)) MB)"
+
+      # ── 11. Build portable ZIP ───────────────────────────────────────────────
+      - name: Build portable ZIP
+        shell: pwsh
+        run: |
+          $ver     = "${{ steps.version.outputs.version }}"
+          $portDir = "${{ env.PORTABLE_DIR }}\POS_Africa_$ver"
+          New-Item -ItemType Directory -Force -Path $portDir | Out-Null
+
+          # Copy the full release bundle
+          Copy-Item -Path "${{ env.BUILD_DIR }}\*" -Destination $portDir -Recurse -Force
+
+          # Add a portable README
+          @"
+          POS Africa $ver – Portable Edition
+          ====================================
+          No installation required. Run pos_africa.exe directly.
+
+          System Requirements
+          -------------------
+          • Windows 10 (1809) or Windows 11  –  64-bit
+          • 50 MB free disk space for the app
+          • 500 MB free disk space for data & backups
+
+          First Run
+          ---------
+          Double-click pos_africa.exe.
+          Default login: admin / admin123  (you will be prompted to change this)
+
+          Data storage
+          ------------
+          The database is stored in:
+            %APPDATA%\POS Africa\pos_africa.db
+
+          Updating
+          --------
+          Replace all files in this folder with the newer version.
+          Your data folder (%APPDATA%\POS Africa) is NOT touched by updates.
+          "@ | Set-Content "$portDir\README.txt" -Encoding UTF8
+
+          $zipName = "POS_Africa_${ver}_Portable.zip"
+          $zipPath = "${{ env.PORTABLE_DIR }}\$zipName"
+          Compress-Archive -Path $portDir -DestinationPath $zipPath -Force
+          Write-Host "Portable ZIP: $zipPath  ($([math]::Round((Get-Item $zipPath).Length/1MB,2)) MB)"
+          "path=$zipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "name=$zipName"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        id: portable
+
+      # ── 12. Upload artifacts ─────────────────────────────────────────────────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ steps.version.outputs.version }}
+          path: ${{ steps.installer.outputs.path }}
+          retention-days: 90
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-${{ steps.version.outputs.version }}
+          path: ${{ steps.portable.outputs.path }}
+          retention-days: 90
+
+      # ── 13. Publish GitHub Release (tag builds only) ─────────────────────────
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "POS Africa ${{ steps.version.outputs.version }}"
+          body: |
+            ## POS Africa ${{ steps.version.outputs.version }}
+
+            ### Downloads
+            | File | Description |
+            |------|-------------|
+            | `pos_africa_setup_${{ steps.version.outputs.version }}.exe` | Windows Installer (recommended) |
+            | `POS_Africa_${{ steps.version.outputs.version }}_Portable.zip` | Portable – no install needed |
+
+            ### System Requirements
+            - Windows 10 (v1809) or Windows 11, 64-bit
+            - 50 MB disk space
+
+            ### First Login
+            - Username: `admin`  Password: `admin123`
+            - You will be prompted to change the password on first login.
+          files: |
+            ${{ steps.installer.outputs.path }}
+            ${{ steps.portable.outputs.path }}
+          generate_release_notes: true

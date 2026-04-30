@@ -44,6 +44,8 @@ dependencies:
   equatable: ^2.0.8
   file_picker: ^11.0.2
   archive: ^4.0.9
+  printing: ^5.13.1
+  pdf: ^3.11.1
 
 dev_dependencies:
   flutter_test:
