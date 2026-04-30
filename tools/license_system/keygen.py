@@ -27,7 +27,7 @@ from license_store  import (
 # ── UI constants ────────────────────────────────────────────────────────────
 APP_TITLE = "License Key Generator  —  ADMIN TOOL"
 WIN_W     = 540
-WIN_H     = 680
+WIN_H     = 820
 
 BG         = "#0F172A"
 BG_CARD    = "#1E293B"
@@ -299,6 +299,17 @@ class KeygenApp:
         self._key_var.set(key)
         self._set_status(
             f"✓ Key generated for machine {mid}  —  click to copy.", SUCCESS)
+
+        # Always show result in a popup so it's never hidden below the fold
+        self._root.clipboard_clear()
+        self._root.clipboard_append(key)
+        messagebox.showinfo(
+            "Activation Key Generated",
+            f"Machine ID:  {mid}\n\nActivation Key:  {key}\n\n"
+            "The key has been copied to your clipboard.\n"
+            "Supply this 12-character key to your customer.",
+            parent=self._root,
+        )
 
     def _copy_key(self) -> None:
         key = self._key_var.get()
