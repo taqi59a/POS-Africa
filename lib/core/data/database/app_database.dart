@@ -20,6 +20,7 @@ import 'tables/sale_lines.dart';
 import 'tables/payments.dart';
 import 'tables/expenses.dart';
 import 'tables/exchange_rate_history.dart';
+import '../../utils/password_utils.dart';
 
 part 'app_database.g.dart';
 
@@ -45,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -69,6 +70,16 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(expenseCategories);
           await m.createTable(expenses);
           await m.createTable(exchangeRateHistory);
+        }
+        if (from < 4) {
+          // Fix: reset admin password to 'master' (previous seed had an invalid hash)
+          final correctHash = PasswordUtils.hashPassword('master');
+          await (update(users)..where((t) => t.username.equals('admin'))).write(
+            UsersCompanion(
+              passwordHash: Value(correctHash),
+              failedLoginAttempts: const Value(0),
+            ),
+          );
         }
       },
       beforeOpen: (details) async {
@@ -119,10 +130,10 @@ class AppDatabase extends _$AppDatabase {
     // Cashier permissions
     await into(permissions).insert(PermissionsCompanion.insert(roleId: cashierRoleId));
 
-    // Default admin user — password 'master' (bcrypt hash)
+    // Default admin user — username: admin, password: master
     await into(users).insert(UsersCompanion.insert(
       username: 'admin',
-      passwordHash: r'$2b$10$3yWGIrTZKb4Gf5H6c7I8yOkF.OLqPbY7FXNz.L3LjEEiBjYkQU4sa',
+      passwordHash: PasswordUtils.hashPassword('master'),
       roleId: adminRoleId,
       requirePasswordChange: const Value(true),
     ));
