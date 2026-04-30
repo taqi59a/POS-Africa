@@ -5,7 +5,7 @@ library;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../theme/app_theme.dart';
+import '../theme/app_theme.dart';
 import 'license_service.dart';
 import 'license_crypto.dart';
 
