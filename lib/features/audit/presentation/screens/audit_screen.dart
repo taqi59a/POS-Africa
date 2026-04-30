@@ -40,12 +40,12 @@ class _AuditScreenState extends State<AuditScreen> {
               itemBuilder: (context, index) {
                 final log = state.logs[index];
                 return ListTile(
-                  leading: _getIconForAction(log.action),
-                  title: Text(log.action, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  leading: _getIconForAction(log.actionType),
+                  title: Text(log.actionType, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${log.timestamp.day}/${log.timestamp.month}/${log.timestamp.year} ${log.timestamp.hour}:${log.timestamp.minute.toString().padLeft(2, '0')} • User ID: ${log.userId ?? 'System'}'),
-                  trailing: log.details != null ? IconButton(
+                  trailing: log.oldValue != null ? IconButton(
                     icon: const Icon(Icons.info_outline),
-                    onPressed: () => _showDetails(context, log.details!),
+                    onPressed: () => _showDetails(context, log.oldValue!),
                   ) : null,
                 );
               },

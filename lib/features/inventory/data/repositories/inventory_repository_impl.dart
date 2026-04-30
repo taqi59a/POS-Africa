@@ -23,7 +23,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
   @override
   Future<List<Product>> getLowStockProducts() =>
       (_db.select(_db.products)
-            ..where((t) => t.stockQuantity.isSmallerOrEqualValue(t.minimumStockLevel))
+            ..where((t) => t.stockQuantity.isSmallerOrEqual(t.minimumStockLevel))
             ..orderBy([(t) => OrderingTerm.asc(t.name)]))
           .get();
 

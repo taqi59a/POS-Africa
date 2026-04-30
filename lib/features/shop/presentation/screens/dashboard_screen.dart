@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../reports/presentation/bloc/report_bloc.dart';
-import '../../inventory/presentation/bloc/inventory_bloc.dart';
+import '../../../reports/presentation/bloc/report_bloc.dart';
+import '../../../inventory/presentation/bloc/inventory_bloc.dart';
 
 class DashboardScreen extends StatefulWidget {
   final void Function(int)? onNavigate;

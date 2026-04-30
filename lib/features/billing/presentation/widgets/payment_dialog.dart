@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drift/drift.dart' hide Column;
 import '../bloc/sales_bloc.dart';
-import '../../settings/presentation/bloc/settings_bloc.dart';
+import '../../../settings/presentation/bloc/settings_bloc.dart';
 import '../../../../core/data/database/app_database.dart';
-import '../../../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import 'receipt_dialog.dart';
 
 class PaymentDialog extends StatefulWidget {
@@ -192,7 +193,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                                           grandTotalUsd: grandTotalUsd,
                                           payments: [
                                             PaymentsCompanion.insert(
-                                              saleId: const Value(0),
+                                              saleId: 0,
                                               method: _paymentMethod,
                                               amountPaid: grandTotalCdf,
                                               amountTendered: Value(_amountTenderedCdf),

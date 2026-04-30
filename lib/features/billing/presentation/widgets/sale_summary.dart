@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/sales_bloc.dart';
-import '../../settings/presentation/bloc/settings_bloc.dart';
-import '../../../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../../settings/presentation/bloc/settings_bloc.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import 'payment_dialog.dart';
 
 class SaleSummary extends StatelessWidget {

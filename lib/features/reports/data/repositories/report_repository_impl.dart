@@ -71,7 +71,7 @@ class ReportRepositoryImpl implements ReportRepository {
   @override
   Future<double> getInventoryTotalValuation() async {
     final products = await _db.select(_db.products).get();
-    return products.fold(0, (sum, p) => sum + (p.stockQuantity * p.costPrice));
+    return products.fold<double>(0.0, (sum, p) => sum + (p.stockQuantity * p.costPrice));
   }
 
   @override

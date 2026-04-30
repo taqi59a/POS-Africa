@@ -5,7 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../bloc/sales_bloc.dart';
-import '../../settings/presentation/bloc/settings_bloc.dart';
+import '../../../settings/presentation/bloc/settings_bloc.dart';
 
 class ReceiptDialog extends StatelessWidget {
   final CompletedSaleReceipt receipt;

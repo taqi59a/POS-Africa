@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/data/database/app_database.dart';
@@ -241,7 +242,7 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
 
       final lineCompanions = state.cart.map((item) => SaleLinesCompanion.insert(
         productId: item.product.id,
-        saleId: const Value(0), // Placeholder, will be replaced in repo
+        saleId: 0, // Placeholder, will be replaced in repo
         productName: item.product.name,
         quantity: item.quantity,
         unitPrice: item.product.sellingPrice,
