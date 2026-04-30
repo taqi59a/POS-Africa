@@ -112,14 +112,34 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> deleteUser(int userId) async {
-    final user = await (_db.select(_db.users)
+    final userToDelete = await (_db.select(_db.users)
           ..where((t) => t.id.equals(userId)))
         .getSingleOrNull();
+
+    if (userToDelete != null) {
+      // Prevent deleting the last active administrator
+      final adminRole = await (_db.select(_db.roles)
+            ..where((t) => t.name.equals('Admin')))
+          .getSingleOrNull();
+      if (adminRole != null && userToDelete.roleId == adminRole.id) {
+        final remainingAdmins = await (_db.select(_db.users)
+              ..where((t) =>
+                  t.roleId.equals(adminRole.id) &
+                  t.isActive.equals(true) &
+                  t.id.isNotIn([userId])))
+            .get();
+        if (remainingAdmins.isEmpty) {
+          throw Exception(
+              'Cannot delete the last administrator. Create another admin account first.');
+        }
+      }
+    }
+
     await (_db.delete(_db.users)..where((t) => t.id.equals(userId))).go();
     await logAudit(_currentUser?.id, _currentUser?.username ?? 'System',
         'DELETE_USER',
         affectedRecordId: userId.toString(),
-        oldValue: user?.username);
+        oldValue: userToDelete?.username);
   }
 }
 

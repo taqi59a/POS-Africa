@@ -91,8 +91,48 @@ class AppDatabase extends _$AppDatabase {
         if (status != 'ok') {
           throw Exception('Database integrity check failed: $status');
         }
+        // Safety: ensure at least one active admin always exists
+        await _ensureAdminExists();
       },
     );
+  }
+
+  /// Emergency recovery: if no active admin exists, recreate the default one.
+  Future<void> _ensureAdminExists() async {
+    final adminRole = await (select(roles)
+          ..where((t) => t.name.equals('Admin')))
+        .getSingleOrNull();
+    if (adminRole == null) return; // roles haven't been seeded yet
+
+    final activeAdmins = await (select(users)
+          ..where((t) =>
+              t.roleId.equals(adminRole.id) & t.isActive.equals(true)))
+        .get();
+    if (activeAdmins.isNotEmpty) return;
+
+    // No active admin — restore the default admin account
+    final existing = await (select(users)
+          ..where((t) => t.username.equals('admin')))
+        .getSingleOrNull();
+    if (existing != null) {
+      // Re-enable and reset password to 'master'
+      await (update(users)..where((t) => t.username.equals('admin'))).write(
+        UsersCompanion(
+          isActive: const Value(true),
+          failedLoginAttempts: const Value(0),
+          passwordHash: Value(PasswordUtils.hashPassword('master')),
+          requirePasswordChange: const Value(true),
+        ),
+      );
+    } else {
+      // Create fresh admin user
+      await into(users).insert(UsersCompanion.insert(
+        username: 'admin',
+        passwordHash: PasswordUtils.hashPassword('master'),
+        roleId: adminRole.id,
+        requirePasswordChange: const Value(true),
+      ));
+    }
   }
 
   /// Seeds the database with default roles, admin user, and settings on first run.

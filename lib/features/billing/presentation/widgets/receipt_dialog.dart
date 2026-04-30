@@ -26,9 +26,8 @@ class ReceiptDialog extends StatelessWidget {
         final footer = settings['receipt_footer'] ?? 'Thank you for your purchase!';
         final vatEnabled = (settings['vat_enabled'] ?? 'false') == 'true';
         final vatPct = double.tryParse(settings['vat_percentage'] ?? '16') ?? 16;
-        final vatAmount = vatEnabled
-            ? receipt.grandTotal * vatPct / (100 + vatPct)
-            : 0.0;
+        final vatNumber = settings['business_vat_number'] ?? '';
+        final vatAmount = receipt.vatAmount;
 
         final theme = Theme.of(context);
         final colorScheme = theme.colorScheme;
@@ -122,8 +121,27 @@ class ReceiptDialog extends StatelessWidget {
                                 style: theme.textTheme.bodySmall,
                                 textAlign: TextAlign.center),
                           ],
+                          if (vatEnabled && vatNumber.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text('VAT No: $vatNumber',
+                                style: theme.textTheme.bodySmall,
+                                textAlign: TextAlign.center),
+                          ],
                           const SizedBox(height: 12),
                           const Divider(),
+
+                          // Customer row (if not walk-in)
+                          if (receipt.customerName != null) ...[
+                            Row(
+                              children: [
+                                const Icon(Icons.person_outline, size: 14),
+                                const SizedBox(width: 4),
+                                Text(receipt.customerName!,
+                                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                          ],
 
                           // Date / cashier row
                           Row(
@@ -193,9 +211,9 @@ class ReceiptDialog extends StatelessWidget {
                                 label: 'Discount',
                                 value: '- CDF ${receipt.discount.toStringAsFixed(0)}',
                                 valueColor: Colors.orange),
-                          if (vatEnabled)
+                          if (vatEnabled && vatAmount > 0)
                             _Row(
-                                label: 'VAT ($vatPct%)',
+                                label: 'VAT ($vatPct% incl.)',
                                 value: 'CDF ${vatAmount.toStringAsFixed(0)}'),
                           const SizedBox(height: 6),
                           Row(
@@ -376,6 +394,8 @@ class ReceiptDialog extends StatelessWidget {
             _pdfRow('Subtotal:', 'CDF ${r.subtotal.toStringAsFixed(0)}', normal),
             if (r.discount > 0)
               _pdfRow('Discount:', '- CDF ${r.discount.toStringAsFixed(0)}', normal),
+            if (r.vatAmount > 0)
+              _pdfRow('VAT (incl.):', 'CDF ${r.vatAmount.toStringAsFixed(0)}', normal),
             pw.SizedBox(height: 3),
             _pdfRow('TOTAL:', 'CDF ${r.grandTotal.toStringAsFixed(0)}', bold),
             if (dualCurrency)

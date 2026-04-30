@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/data/database/app_database.dart';
 import '../bloc/inventory_bloc.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import 'add_edit_product_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -222,65 +224,128 @@ class _ProductTable extends StatelessWidget {
   }
 
   void _showAdjustStockDialog(BuildContext context, Product p) {
+    // Determine current user and role
+    final authState = context.read<AuthBloc>().state;
+    final currentUser = authState is AuthAuthenticated ? authState.user : null;
+    if (currentUser == null) return;
+
     final qtyController = TextEditingController();
     final notesController = TextEditingController();
+    // Default to RECEIVE for stock clerks, CORRECTION for managers/admins
     String selectedReason = 'CORRECTION';
+    bool isAdminOrManager = true; // will be confirmed by role name below
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Adjust Stock: ${p.name}'),
-        content: StatefulBuilder(
-          builder: (ctx, setState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Current stock: ${p.stockQuantity}'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: qtyController,
-                decoration: const InputDecoration(
-                  labelText: 'Quantity change (use - for reduction)',
-                  border: OutlineInputBorder(),
+      builder: (ctx) {
+        // We use BlocBuilder to get roles from UserBloc if needed;
+        // simpler: just use the roleId from SettingsBloc or hardcode check
+        // Roles: 1=Admin, 2=Manager — can adjust negative (damage/theft)
+        //        3=Cashier, 4=Stock Clerk — can only receive/add
+        // This is enforced at the dialog level using roleId
+        final roleId = currentUser.roleId;
+        // roleId 1 = Admin, 2 = Manager (first two seeded roles)
+        isAdminOrManager = roleId != null && roleId <= 2;
+
+        return AlertDialog(
+          title: Text('Adjust Stock: ${p.name}'),
+          content: StatefulBuilder(
+            builder: (ctx2, setDialogState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blueGrey.withAlpha(30),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Current stock: ${p.stockQuantity.toStringAsFixed(0)} units',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: selectedReason,
-                decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
-                items: ['CORRECTION', 'DAMAGE', 'THEFT', 'OPENING_COUNT']
-                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                    .toList(),
-                onChanged: (v) => setState(() => selectedReason = v!),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notesController,
-                decoration: const InputDecoration(labelText: 'Notes (required)', border: OutlineInputBorder()),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: qtyController,
+                  decoration: InputDecoration(
+                    labelText: isAdminOrManager
+                        ? 'Quantity change (use - to deduct for loss/damage)'
+                        : 'Quantity to receive (+)',
+                    border: const OutlineInputBorder(),
+                    helperText: isAdminOrManager
+                        ? 'Admins/Managers can enter negative values'
+                        : 'Stock clerks can only add received goods',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      signed: true, decimal: true),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedReason,
+                  decoration: const InputDecoration(
+                      labelText: 'Reason', border: OutlineInputBorder()),
+                  items: [
+                    if (isAdminOrManager) ...[
+                      const DropdownMenuItem(value: 'CORRECTION', child: Text('Correction')),
+                      const DropdownMenuItem(value: 'DAMAGE', child: Text('Damage / Loss')),
+                      const DropdownMenuItem(value: 'THEFT', child: Text('Theft')),
+                    ],
+                    const DropdownMenuItem(value: 'OPENING_COUNT', child: Text('Opening Count')),
+                    if (!isAdminOrManager)
+                      const DropdownMenuItem(value: 'CORRECTION', child: Text('Stock Received')),
+                  ],
+                  onChanged: (v) => setDialogState(() => selectedReason = v!),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                      labelText: 'Notes', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              final qty = double.tryParse(qtyController.text) ?? 0;
-              context.read<InventoryBloc>().add(AdjustStock(
-                productId: p.id,
-                userId: 1, // TODO: inject current user id
-                quantityChange: qty,
-                movementType: 'ADJUST',
-                reasonCode: selectedReason,
-                notes: notesController.text,
-              ));
-              Navigator.pop(ctx);
-            },
-            child: const Text('Apply'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () {
+                final qty = double.tryParse(qtyController.text) ?? 0;
+                if (qty == 0) return;
+
+                // Block non-admin/manager from entering negative values
+                if (!isAdminOrManager && qty < 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Only Admins and Managers can deduct stock.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final movementType =
+                    qty > 0 ? 'RECEIVE' : 'ADJUST';
+
+                context.read<InventoryBloc>().add(AdjustStock(
+                  productId: p.id,
+                  userId: currentUser.id,
+                  quantityChange: qty,
+                  movementType: movementType,
+                  reasonCode: selectedReason,
+                  notes: notesController.text.isNotEmpty
+                      ? notesController.text
+                      : null,
+                ));
+                Navigator.pop(ctx);
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
