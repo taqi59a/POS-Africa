@@ -56,8 +56,16 @@ Feature modules currently present:
 Startup flow:
 1. main initializes Flutter bindings.
 2. initDependencies registers database, repositories, and bloc factories in get_it.
-3. App starts with MultiBlocProvider and eagerly triggers bootstrap events for key modules.
-4. AuthWrapper routes to Login, Password Change, or Dashboard shell based on auth state.
+3. App starts with MultiBlocProvider, wrapped by LicenseGuard for activation enforcement.
+4. LicenseGuard verifies machine hardware and license file, or shows ActivationScreen if unlicensed.
+5. AuthWrapper routes to Login, Password Change, or Dashboard shell based on auth state.
+
+License enforcement:
+- LicenseGuard FutureBuilder collects hardware fingerprint (async) before showing any UI
+- In debug/profile mode (`kReleaseMode` false), license check is skipped entirely
+- In release mode, LicenseService checks license.dat and validates activation key matches machine ID
+- If unlicensed/expired/tampered, full-screen ActivationScreen is shown with glassmorphism UI
+- License file stored in EXE directory (portable) or %APPDATA% (installed)
 
 UI shell:
 - Single desktop scaffold with NavigationRail
@@ -85,7 +93,52 @@ This gives:
 - Independent state machines per UI area
 - Low coupling between features
 
-## 6. Data Layer and Persistence
+## 6. License System and Activation
+
+License architecture:
+- Hardware fingerprinting via Windows WMI (CPU ID + board serial)
+- SHA-256 based machine ID derivation (8-char hex)
+- Admin key generation tool (KeyGen_ADMIN.exe) produces 12-char activation keys
+- Activation keys are deterministic: SHA-256(machineId + SECRET_SALT)[:12]
+
+Implementation files:
+- lib/core/license/license_crypto.dart — SHA-256 machine ID / key derivation
+- lib/core/license/hardware_fingerprint.dart — Async WMI/PowerShell hardware collection
+- lib/core/license/license_store.dart — Versioned JSON license.dat I/O (schema v1)
+- lib/core/license/license_service.dart — Combined check/activate API with debug bypass
+- lib/core/license/activation_screen.dart — Full-screen glassmorphism activation UI
+- lib/core/license/license_guard.dart — FutureBuilder widget wrapping app entry point
+
+Admin tools:
+- tools/license_system/keygen.py — Tkinter UI for generating keys (kept private)
+- tools/license_system/shared_crypto.py — Identical crypto as Dart version
+- tools/license_system/license_store.py — Python license file I/O
+- tools/license_system/build.bat — PyInstaller onefile build script
+
+CI/CD integration:
+- GitHub Actions builds KeyGen_ADMIN.exe alongside Flutter installer + portable ZIP
+- All 3 artifacts attached to tagged releases on GitHub
+
+License verification flow:
+1. LicenseGuard.initState calls LicenseService.check() (async)
+2. check() collects CPU ID + board serial via hardware_fingerprint
+3. Derives 8-char machine ID from hardware
+4. Loads license.dat if exists; validates:
+   - Machine ID matches current hardware (not changed)
+   - Activation key matches derivation formula (not tampered)
+   - Expiry date not reached (not expired)
+5. Returns LicenseCheckResult with status enum
+6. If licensed, shows widget.child (AuthWrapper)
+7. If not/tampered/expired, shows ActivationScreen for manual key entry
+8. Debug mode always returns licensed immediately
+
+Security notes:
+- SECRET_SALT split into 4 segments and reconstructed at runtime
+- Keygen EXE must be kept private (anyone with it can generate keys for any machine)
+- Customers cannot forge licenses without the salt constant
+- License file is versioned for future schema extensions
+
+## 7. Data Layer and Persistence
 
 Database engine:
 - drift on top of sqlite3
@@ -123,7 +176,7 @@ Default seed behavior:
 - Seeds baseline business and POS settings
 - Seeds default inventory and expense categories
 
-## 7. Feature Responsibilities
+## 8. Feature Responsibilities
 
 Auth:
 - Login and session state
@@ -157,12 +210,14 @@ Settings:
 - Currency and VAT toggles
 - Receipt and behavior defaults
 
-## 8. Security and Reliability
+## 9. Security and Reliability
 
 Security controls currently implemented:
+- Machine-based license enforcement with hardware fingerprinting
+- Role and permission model in persistence (admin, manager, cashier, stock clerk)
 - bcrypt-based password hash storage
 - Forced password change for default admin user
-- Role and permission model in persistence
+- CORS and secret salt splitting in crypto modules
 
 Reliability controls currently implemented:
 - SQLite integrity check at startup
@@ -173,7 +228,7 @@ Reliability controls currently implemented:
 Operational note:
 - The default admin credentials should be rotated during first deployment.
 
-## 9. Desktop Runtime and Distribution
+## 10. Desktop Runtime and Distribution
 
 Windows runtime architecture:
 - flutter build windows --release produces executable plus required runtime files
@@ -191,7 +246,7 @@ Automation path:
 Expected output artifact:
 - build/windows/installer/pos_africa_setup_<version>.exe
 
-## 10. Typical Runtime Flows
+## 11. Typical Runtime Flows
 
 Authentication flow:
 1. App boot triggers AuthCheckStatus.
@@ -205,7 +260,7 @@ POS sale flow:
 3. Checkout commits sale header, sale lines, payments, and stock movement updates.
 4. Reporting and audit visibility reflects persisted sale changes.
 
-## 11. Extension Guidelines
+## 12. Extension Guidelines
 
 When adding a new feature module:
 1. Create feature folders under data, domain, and presentation.
@@ -222,16 +277,16 @@ When changing schema:
 4. Regenerate drift/build_runner outputs.
 5. Validate startup integrity and existing-user migration path.
 
-## 12. Current Gaps and Hardening Priorities
+## 13. Current Gaps and Hardening Priorities
 
 Areas to improve for production scale:
 - Add comprehensive automated tests beyond baseline widget test
 - Add structured logging and crash reporting hooks
-- Add stronger secret handling for any future cloud integrations
 - Add database backup scheduling and restore verification workflows
-- Add CI pipeline for automated Windows installer builds on tagged releases
+- Consider stronger secret handling for future cloud integrations (e.g., hardware-bound token storage)
+- Expand license system with subscription/renewal workflows if needed
 
-## 13. Architecture Decision Summary
+## 14. Architecture Decision Summary
 
 Selected decisions and rationale:
 - Local SQLite with drift for offline-first speed and deterministic behavior
