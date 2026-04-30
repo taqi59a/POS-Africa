@@ -36,6 +36,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Login screen always uses dark theme regardless of app setting
+    // because the glassmorphism background is always dark.
+    return Theme(
+      data: AppTheme.dark,
+      child: _buildLogin(context),
+    );
+  }
+
+  Widget _buildLogin(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgDeep,
       body: Stack(

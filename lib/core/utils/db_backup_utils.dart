@@ -145,4 +145,26 @@ class DbBackupUtils {
     await stagedRestoreFile.delete();
     return true;
   }
+
+  // ── Factory Reset ────────────────────────────────────────────────────────────
+  /// Creates a backup at user-chosen path, deletes the DB, and stages a fresh-start signal.
+  /// Returns the backup path, or null if the user cancelled the directory picker.
+  static Future<String?> factoryReset() async {
+    // 1. Backup to user-chosen location first
+    final backupPath = await createBackup();
+    if (backupPath == null) return null; // user cancelled
+
+    // 2. Delete current database so the app starts fresh on next launch
+    final dbFile = await _getDbFile();
+    if (di.sl.isRegistered<AppDatabase>()) {
+      try { await di.sl<AppDatabase>().close(); } catch (_) {}
+    }
+    final walFile = File('${dbFile.path}-wal');
+    final shmFile = File('${dbFile.path}-shm');
+    if (await walFile.exists()) await walFile.delete();
+    if (await shmFile.exists()) await shmFile.delete();
+    if (await dbFile.exists()) await dbFile.delete();
+
+    return backupPath;
+  }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/data/database/app_database.dart';
+import '../../../../core/di/injection.dart' as di;
+import '../../../../core/utils/stock_import_export_utils.dart';
 import '../bloc/inventory_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
@@ -29,6 +31,130 @@ class _InventoryScreenState extends State<InventoryScreen> {
     super.dispose();
   }
 
+  Future<void> _exportStock(BuildContext context) async {
+    final state = context.read<InventoryBloc>().state;
+    if (state is! InventoryLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please wait for inventory to load')));
+      return;
+    }
+    try {
+      final path = await StockImportExportUtils.exportProducts(state.products);
+      if (path != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Stock exported to: $path')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _importStock(BuildContext context) async {
+    try {
+      final rows = await StockImportExportUtils.pickAndParseImportFile();
+      if (rows == null) return;
+
+      // Get current products for conflict detection
+      final db = di.sl<AppDatabase>();
+      final existing = await db.select(db.products).get();
+      final conflicts = StockImportExportUtils.detectConflicts(rows, existing);
+
+      if (!context.mounted) return;
+
+      // Show import preview dialog
+      bool? overwrite;
+      if (conflicts.isNotEmpty) {
+        overwrite = await _showConflictDialog(context, rows, conflicts);
+        if (overwrite == null) return; // user cancelled
+      }
+
+      // Apply import
+      final result = await StockImportExportUtils.applyImport(
+        rows: rows,
+        existing: existing,
+        db: db,
+        overwriteDuplicates: overwrite ?? false,
+      );
+
+      if (!context.mounted) return;
+      context.read<InventoryBloc>().add(LoadProducts());
+
+      final msg = 'Imported: ${result.imported} new  •  '
+          'Updated: ${result.updated}  •  Skipped: ${result.skipped}'
+          '${result.errors.isNotEmpty ? '\nErrors: ${result.errors.length}' : ''}';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Import failed: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<bool?> _showConflictDialog(
+      BuildContext context,
+      List<StockExportRow> rows,
+      List<ImportConflict> conflicts) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${conflicts.length} Duplicate(s) Found'),
+        content: SizedBox(
+          width: 600,
+          height: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'The following ${conflicts.length} item(s) already exist in inventory '
+                'with different values. How would you like to handle them?',
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: conflicts.length,
+                  separatorBuilder: (_, __) => const Divider(height: 8),
+                  itemBuilder: (_, i) {
+                    final c = conflicts[i];
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.warning_amber_outlined, color: Colors.orange, size: 20),
+                      title: Text(c.incoming.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        'Conflicting fields: ${c.conflictingFields.join(', ')}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text('Total items to import: ${rows.length}  •  New: ${rows.length - conflicts.length}  •  Duplicates: ${conflicts.length}',
+                  style: const TextStyle(fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Skip Duplicates'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Overwrite Duplicates'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -49,6 +175,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
             },
           ),
           const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.upload_file_outlined),
+            tooltip: 'Export Stock to JSON',
+            onPressed: () => _exportStock(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.download_for_offline_outlined),
+            tooltip: 'Import Stock from JSON',
+            onPressed: () => _importStock(context),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => context.read<InventoryBloc>().add(LoadProducts()),

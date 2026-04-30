@@ -4,6 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 import '../bloc/settings_bloc.dart';
 import '../../../../core/utils/db_backup_utils.dart';
+import '../../../../core/utils/password_utils.dart';
+import '../../../../core/di/injection.dart' as di;
+import '../../../../core/data/database/app_database.dart';
+import 'package:drift/drift.dart' show Value;
 
 // Supported thermal receipt paper widths (in mm)
 const _receiptWidths = [
@@ -94,6 +98,138 @@ class _SettingsScreenState extends State<SettingsScreen> {
       };
       context.read<SettingsBloc>().add(SaveSettings(updated));
     }
+  }
+
+  void _showFactoryResetDialog(BuildContext context) {
+    final passwordController = TextEditingController();
+    bool obscure = true;
+    String? errorText;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setDialogState) => AlertDialog(
+          title: const Row(children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Factory Reset', style: TextStyle(color: Colors.red)),
+          ]),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'This will permanently DELETE all data including:\n'
+                  '• All sales and transaction history\n'
+                  '• All inventory and products\n'
+                  '• All customers and expenses\n'
+                  '• All users (except default admin)\n'
+                  '• All settings\n\n'
+                  'A backup will be saved before reset. '
+                  'You will be asked where to save it.\n\n'
+                  'Enter the main admin password to confirm:',
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: obscure,
+                  decoration: InputDecoration(
+                    labelText: 'Admin Password',
+                    border: const OutlineInputBorder(),
+                    errorText: errorText,
+                    suffixIcon: IconButton(
+                      icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setDialogState(() => obscure = !obscure),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx2),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
+              icon: const Icon(Icons.restart_alt_rounded),
+              label: const Text('RESET NOW'),
+              onPressed: () async {
+                // Verify admin password
+                final db = di.sl<AppDatabase>();
+                final adminUser = await (db.select(db.users)
+                      ..where((t) => t.username.equals('admin')))
+                    .getSingleOrNull();
+
+                if (adminUser == null ||
+                    !PasswordUtils.verifyPassword(
+                        passwordController.text, adminUser.passwordHash)) {
+                  setDialogState(() => errorText = 'Incorrect admin password');
+                  return;
+                }
+
+                Navigator.pop(ctx2);
+
+                // Show progress
+                if (!context.mounted) return;
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const AlertDialog(
+                    content: Row(children: [
+                      CircularProgressIndicator(),
+                      SizedBox(width: 16),
+                      Text('Creating backup and resetting...'),
+                    ]),
+                  ),
+                );
+
+                try {
+                  final backupPath = await DbBackupUtils.factoryReset();
+                  if (backupPath == null) {
+                    // User cancelled backup picker
+                    if (context.mounted) Navigator.pop(context);
+                    return;
+                  }
+                  if (context.mounted) {
+                    Navigator.pop(context); // close progress dialog
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Reset Complete'),
+                        content: Text(
+                          'Backup saved to:\n$backupPath\n\n'
+                          'Please restart the application to complete the factory reset.',
+                        ),
+                        actions: [
+                          ElevatedButton(
+                            onPressed: () => exit(0),
+                            child: const Text('Exit App'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Reset failed: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -390,6 +526,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+                      // ── Factory Reset ───────────────────────────────────────
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red.withAlpha(100)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 22),
+                              const SizedBox(width: 8),
+                              Text('Danger Zone',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.red)),
+                            ]),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Factory Reset will erase ALL data (sales, inventory, users, settings) and '
+                              'restore the system to its default state. A backup will be created first. '
+                              'Only the main admin (username: admin) can perform this action.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () => _showFactoryResetDialog(context),
+                                icon: const Icon(Icons.restart_alt_rounded),
+                                label: const Text('FACTORY RESET'),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 32),
                       SizedBox(

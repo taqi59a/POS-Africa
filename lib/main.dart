@@ -158,7 +158,6 @@ class _DashboardShellState extends State<DashboardShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgBase,
       body: Row(
         children: [
           _FuturisticSidebar(
@@ -214,19 +213,26 @@ class _FuturisticSidebar extends StatelessWidget {
         ? authState.user.username
         : 'User';
 
+    final cs = Theme.of(context).colorScheme;
+    final sidebarBg = cs.brightness == Brightness.dark
+        ? AppTheme.bgSidebar
+        : cs.surfaceContainerLowest;
+    final onSiderbar = cs.onSurface;
+    final mutedColor = cs.onSurfaceVariant;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeInOut,
       width: w,
-      color: AppTheme.bgSidebar,
+      color: sidebarBg,
       child: Column(
         children: [
           // ── Brand header ─────────────────────────────────────────────
           Container(
             height: 64,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppTheme.borderSubtle)),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
             ),
             child: Row(
               children: [
@@ -244,10 +250,10 @@ class _FuturisticSidebar extends StatelessWidget {
                 ),
                 if (expanded) ...[
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text('POS Africa',
                       style: TextStyle(
-                        color: AppTheme.textPrimary,
+                        color: onSiderbar,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.3,
@@ -266,7 +272,7 @@ class _FuturisticSidebar extends StatelessWidget {
                       expanded
                           ? Icons.keyboard_double_arrow_left_rounded
                           : Icons.keyboard_double_arrow_right_rounded,
-                      color: AppTheme.textMuted, size: 18),
+                      color: mutedColor, size: 18),
                   ),
                 ),
               ],
@@ -292,26 +298,26 @@ class _FuturisticSidebar extends StatelessWidget {
 
           // ── User + Logout ─────────────────────────────────────────────
           Container(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppTheme.borderSubtle)),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: cs.outlineVariant)),
             ),
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: AppTheme.primaryGlow,
+                  backgroundColor: cs.primaryContainer,
                   child: Text(
                     userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                        color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13),
+                    style: TextStyle(
+                        color: cs.primary, fontWeight: FontWeight.w700, fontSize: 13),
                   ),
                 ),
                 if (expanded) ...[
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(userName,
-                      style: const TextStyle(color: AppTheme.textSecondary,
+                      style: TextStyle(color: cs.onSurfaceVariant,
                           fontSize: 13, fontWeight: FontWeight.w500),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -323,10 +329,10 @@ class _FuturisticSidebar extends StatelessWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(6),
                     onTap: () => context.read<AuthBloc>().add(AuthLogoutRequested()),
-                    child: const Padding(
-                      padding: EdgeInsets.all(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
                       child: Icon(Icons.logout_rounded,
-                          color: AppTheme.textMuted, size: 18),
+                          color: cs.onSurfaceVariant, size: 18),
                     ),
                   ),
                 ),
@@ -362,13 +368,14 @@ class _SidebarItemState extends State<_SidebarItem> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final bg = widget.isSelected
-        ? AppTheme.primaryGlow
-        : (_hovered ? AppTheme.borderSubtle : Colors.transparent);
+        ? cs.primaryContainer
+        : (_hovered ? cs.outlineVariant.withAlpha(50) : Colors.transparent);
     final iconColor =
-        widget.isSelected ? AppTheme.primary : AppTheme.textMuted;
+        widget.isSelected ? cs.primary : cs.onSurfaceVariant;
     final textColor =
-        widget.isSelected ? AppTheme.textPrimary : AppTheme.textSecondary;
+        widget.isSelected ? cs.onPrimaryContainer : cs.onSurfaceVariant;
 
     return MouseRegion(
       onEnter:  (_) => setState(() => _hovered = true),
@@ -383,7 +390,7 @@ class _SidebarItemState extends State<_SidebarItem> {
             color:        bg,
             borderRadius: BorderRadius.circular(10),
             border: widget.isSelected
-                ? Border.all(color: AppTheme.borderAccent, width: 1)
+                ? Border.all(color: cs.primary.withAlpha(0x4D), width: 1)
                 : null,
           ),
           child: Row(
