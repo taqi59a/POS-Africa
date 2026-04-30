@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/sales_bloc.dart';
-import '../../inventory/presentation/bloc/inventory_bloc.dart';
+import '../../../inventory/presentation/bloc/inventory_bloc.dart';
 import '../widgets/product_selector.dart';
 import '../widgets/cart_list.dart';
 import '../widgets/sale_summary.dart';

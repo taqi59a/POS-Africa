@@ -175,6 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         final result = await FilePicker.platform.pickFiles(
                                           type: FileType.image,
                                           allowMultiple: false,
+                                          dialogTitle: 'Choose Business Logo',
                                         );
                                         if (result != null && result.files.single.path != null) {
                                           setState(() => _logoPath = result.files.single.path!);

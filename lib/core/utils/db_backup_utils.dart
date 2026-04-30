@@ -29,11 +29,11 @@ class DbBackupUtils {
 
   static String _timestamp(DateTime now) {
     final mm = now.month.toString().padLeft(2, '0');
-    final dd = now.day.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
     final hh = now.hour.toString().padLeft(2, '0');
     final min = now.minute.toString().padLeft(2, '0');
     final ss = now.second.toString().padLeft(2, '0');
-    return '${now.year}$mm$dd_$hh$min$ss';
+    return '${now.year}$mm${day}_$hh$min$ss';
   }
 
   static Future<String?> createBackup() async {
@@ -45,7 +45,9 @@ class DbBackupUtils {
 
     await _checkpointWalIfAvailable();
 
-    final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+    final selectedDirectory = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Choose backup destination',
+    );
     if (selectedDirectory == null) return null;
 
     final now = DateTime.now();

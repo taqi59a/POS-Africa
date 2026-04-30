@@ -143,8 +143,8 @@ class SalesState extends Equatable {
     this.lastSaleReceipt,
   });
 
-  double get subtotal => cart.fold(0, (sum, item) => sum + (item.product.sellingPrice * item.quantity));
-  double get totalDiscount => cart.fold(0, (sum, item) => sum + item.discount) + globalDiscount;
+  double get subtotal => cart.fold(0.0, (sum, item) => sum + (item.product.sellingPrice * item.quantity));
+  double get totalDiscount => cart.fold(0.0, (sum, item) => sum + item.discount) + globalDiscount;
   double get grandTotal => subtotal - totalDiscount;
 
   SalesState copyWith({
