@@ -5,6 +5,21 @@ import 'package:file_picker/file_picker.dart';
 import '../bloc/settings_bloc.dart';
 import '../../../../core/utils/db_backup_utils.dart';
 
+// Supported thermal receipt paper widths (in mm)
+const _receiptWidths = [
+  _ReceiptWidth('57 mm  (narrow thermal)',   '57'),
+  _ReceiptWidth('72 mm  (medium thermal)',   '72'),
+  _ReceiptWidth('80 mm  (standard thermal)', '80'),
+  _ReceiptWidth('104 mm (wide thermal)',      '104'),
+  _ReceiptWidth('A4  (210 mm)',              '210'),
+];
+
+class _ReceiptWidth {
+  final String label;
+  final String valueMm;
+  const _ReceiptWidth(this.label, this.valueMm);
+}
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -16,15 +31,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Controllers
-  final _businessNameController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _vatPercentageController = TextEditingController();
-  final _exchangeRateController = TextEditingController();
+  final _businessNameController    = TextEditingController();
+  final _addressController         = TextEditingController();
+  final _phoneController           = TextEditingController();
+  final _vatPercentageController   = TextEditingController();
+  final _exchangeRateController    = TextEditingController();
+  final _receiptFooterController   = TextEditingController();
 
-  bool _dualCurrencyEnabled = false;
-  bool _vatEnabled = false;
-  String _logoPath = '';
+  bool   _dualCurrencyEnabled = false;
+  bool   _vatEnabled          = false;
+  String _logoPath            = '';
+  String _themeMode           = 'light';   // default light
+  String _receiptWidthMm      = '80';      // default 80mm
+  bool   _saving              = false;     // true when user clicked Save
 
   @override
   void initState() {
@@ -39,31 +58,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _phoneController.dispose();
     _vatPercentageController.dispose();
     _exchangeRateController.dispose();
+    _receiptFooterController.dispose();
     super.dispose();
   }
 
   void _populateFields(Map<String, String> settings) {
-    _businessNameController.text = settings['business_name'] ?? '';
-    _addressController.text = settings['business_address'] ?? '';
-    _phoneController.text = settings['business_phone'] ?? '';
-    _vatPercentageController.text = settings['vat_percentage'] ?? '16';
-    _exchangeRateController.text = settings['usd_exchange_rate'] ?? '2850';
+    _businessNameController.text  = settings['business_name']    ?? '';
+    _addressController.text       = settings['business_address'] ?? '';
+    _phoneController.text         = settings['business_phone']   ?? '';
+    _vatPercentageController.text = settings['vat_percentage']   ?? '16';
+    _exchangeRateController.text  = settings['usd_exchange_rate'] ?? '2850';
+    _receiptFooterController.text = settings['receipt_footer']   ?? 'Thank you for your purchase!';
     _dualCurrencyEnabled = (settings['dual_currency_enabled'] ?? 'false') == 'true';
-    _vatEnabled = (settings['vat_enabled'] ?? 'false') == 'true';
-    _logoPath = settings['business_logo_path'] ?? '';
+    _vatEnabled          = (settings['vat_enabled']           ?? 'false') == 'true';
+    _logoPath            = settings['business_logo_path'] ?? '';
+    _themeMode           = settings['theme_mode']         ?? 'light';
+    _receiptWidthMm      = settings['receipt_paper_width_mm'] ?? '80';
   }
 
   void _onSave() {
     if (_formKey.currentState!.validate()) {
+      _saving = true;
       final Map<String, String> updated = {
-        'business_name': _businessNameController.text,
-        'business_address': _addressController.text,
-        'business_phone': _phoneController.text,
-        'vat_percentage': _vatPercentageController.text,
-        'usd_exchange_rate': _exchangeRateController.text,
-        'dual_currency_enabled': _dualCurrencyEnabled.toString(),
-        'vat_enabled': _vatEnabled.toString(),
-        'business_logo_path': _logoPath,
+        'business_name':          _businessNameController.text,
+        'business_address':       _addressController.text,
+        'business_phone':         _phoneController.text,
+        'vat_percentage':         _vatPercentageController.text,
+        'usd_exchange_rate':      _exchangeRateController.text,
+        'dual_currency_enabled':  _dualCurrencyEnabled.toString(),
+        'vat_enabled':            _vatEnabled.toString(),
+        'business_logo_path':     _logoPath,
+        'receipt_footer':         _receiptFooterController.text,
+        'theme_mode':             _themeMode,
+        'receipt_paper_width_mm': _receiptWidthMm,
       };
       context.read<SettingsBloc>().add(SaveSettings(updated));
     }
@@ -86,10 +113,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         listener: (context, state) {
           if (state is SettingsLoaded) {
             _populateFields(state.settings);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Settings saved successfully')),
-            );
+            if (_saving) {
+              _saving = false;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Settings saved successfully')),
+              );
+            }
           } else if (state is SettingsError) {
+            _saving = false;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message), backgroundColor: Colors.red),
             );
@@ -247,6 +278,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                       const SizedBox(height: 32),
+
+                      // ── App Theme ──────────────────────────────────────────
+                      Text('App Theme', style: Theme.of(context).textTheme.titleLarge),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ThemeOption(
+                              label: 'Light',
+                              icon: Icons.wb_sunny_rounded,
+                              selected: _themeMode == 'light',
+                              onTap: () => setState(() => _themeMode = 'light'),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _ThemeOption(
+                              label: 'Dark',
+                              icon: Icons.nightlight_round,
+                              selected: _themeMode == 'dark',
+                              onTap: () => setState(() => _themeMode = 'dark'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Changing the theme takes effect immediately after saving.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 32),
+
+                      // ── Receipt & Printing ─────────────────────────────────
+                      Text('Receipt & Printing', style: Theme.of(context).textTheme.titleLarge),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _receiptWidthMm,
+                        decoration: const InputDecoration(
+                          labelText: 'Thermal Receipt Paper Width',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.receipt_long_outlined),
+                          helperText:
+                              'Standard is 80 mm. Check your printer\'s paper roll size.',
+                        ),
+                        items: _receiptWidths
+                            .map((w) => DropdownMenuItem(
+                                  value: w.valueMm,
+                                  child: Text(w.label),
+                                ))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setState(() => _receiptWidthMm = v);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _receiptFooterController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Receipt Footer Message',
+                          border: OutlineInputBorder(),
+                          hintText: 'Thank you for your purchase!',
+                          prefixIcon: Icon(Icons.comment_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
                       Text('Data Management', style: Theme.of(context).textTheme.titleLarge),
                       const Divider(),
                       const SizedBox(height: 16),
@@ -308,6 +408,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ── Theme option card ──────────────────────────────────────────────────────
+class _ThemeOption extends StatelessWidget {
+  final String    label;
+  final IconData  icon;
+  final bool      selected;
+  final VoidCallback onTap;
+
+  const _ThemeOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? cs.primary : cs.outline,
+            width: selected ? 2 : 1,
+          ),
+          color: selected ? cs.primaryContainer : cs.surface,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                color: selected ? cs.primary : cs.onSurfaceVariant,
+                size: 22),
+            const SizedBox(width: 10),
+            Text(label,
+                style: TextStyle(
+                  color: selected ? cs.primary : cs.onSurfaceVariant,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  fontSize: 15,
+                )),
+          ],
+        ),
       ),
     );
   }

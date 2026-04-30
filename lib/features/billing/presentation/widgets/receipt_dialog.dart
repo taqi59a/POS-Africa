@@ -298,6 +298,7 @@ class ReceiptDialog extends StatelessWidget {
     final logoPath = settings['business_logo_path'] ?? '';
     final dualCurrency = (settings['dual_currency_enabled'] ?? 'false') == 'true';
     final footer = settings['receipt_footer'] ?? 'Thank you for your purchase!';
+    final widthMm = double.tryParse(settings['receipt_paper_width_mm'] ?? '80') ?? 80;
 
     final doc = pw.Document();
 
@@ -311,8 +312,8 @@ class ReceiptDialog extends StatelessWidget {
       } catch (_) {}
     }
 
-    const pageWidth = 80 * PdfPageFormat.mm;
-    const margin = 4 * PdfPageFormat.mm;
+    final pageWidth = widthMm * PdfPageFormat.mm;
+    final margin    = (widthMm >= 100 ? 8.0 : 4.0) * PdfPageFormat.mm;
 
     pw.TextStyle bold(double size) =>
         pw.TextStyle(fontSize: size, fontWeight: pw.FontWeight.bold);

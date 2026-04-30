@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -31,6 +32,20 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DbBackupUtils.applyPendingRestoreIfAny();
   await di.initDependencies();
+
+  // ── Crash safety: always keep an up-to-date auto backup ──
+  DbBackupUtils.startPeriodicAutoBackup();
+
+  // ── Global error handler: save an emergency backup on unhandled errors ──
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    DbBackupUtils.createEmergencyBackup();
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    DbBackupUtils.createEmergencyBackup();
+    return false;
+  };
+
   runApp(const CongoPosApp());
 }
 
@@ -51,13 +66,28 @@ class CongoPosApp extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<AuditBloc>()..add(LoadAuditLogs())),
         BlocProvider(create: (_) => di.sl<UserBloc>()..add(LoadUsers())),
       ],
-      child: MaterialApp(
-        title: 'POS Africa',
-        theme:      AppTheme.dark,
-        darkTheme:  AppTheme.dark,
-        themeMode:  ThemeMode.dark,
-        home:       const AuthWrapper(),
-        debugShowCheckedModeBanner: false,
+      child: BlocBuilder<SettingsBloc, SettingsState>(
+        buildWhen: (prev, cur) {
+          // Only rebuild MaterialApp when theme_mode setting changes
+          if (prev is SettingsLoaded && cur is SettingsLoaded) {
+            return prev.settings['theme_mode'] != cur.settings['theme_mode'];
+          }
+          return cur is SettingsLoaded;
+        },
+        builder: (ctx, settingsState) {
+          final settings = settingsState is SettingsLoaded
+              ? settingsState.settings
+              : const <String, String>{};
+          final themeMode = AppTheme.themeModeFromSettings(settings);
+          return MaterialApp(
+            title:     'POS Africa',
+            theme:     AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: themeMode,
+            home:      const AuthWrapper(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }
@@ -73,7 +103,6 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, state) {
         if (state is AuthInitial || state is AuthLoading) {
           return const Scaffold(
-            backgroundColor: AppTheme.bgDeep,
             body: Center(
               child: CircularProgressIndicator(color: AppTheme.primary),
             ),
