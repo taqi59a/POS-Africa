@@ -24,6 +24,7 @@ import '../../features/expenses/presentation/bloc/expense_bloc.dart';
 import '../../features/audit/domain/repositories/audit_repository.dart';
 import '../../features/audit/data/repositories/audit_repository_impl.dart';
 import '../../features/audit/presentation/bloc/audit_bloc.dart';
+import '../../features/users/presentation/bloc/user_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -51,4 +52,5 @@ Future<void> initDependencies() async {
   sl.registerFactory(() => ReportBloc(sl()));
   sl.registerFactory(() => ExpenseBloc(sl()));
   sl.registerFactory(() => AuditBloc(sl()));
+  sl.registerFactory(() => UserBloc(sl()));
 }
