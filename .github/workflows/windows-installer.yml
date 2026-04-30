@@ -181,7 +181,40 @@ jobs:
           path: ${{ steps.portable.outputs.path }}
           retention-days: 90
 
-      # ── 13. Publish GitHub Release (tag builds only) ─────────────────────────
+      # ── 13. Build KeyGen Admin EXE (Python / PyInstaller) ───────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Build KeyGen_ADMIN.exe
+        id: keygen
+        shell: pwsh
+        run: |
+          pip install pyinstaller --quiet
+          Push-Location tools\license_system
+          pyinstaller `
+            --onefile `
+            --windowed `
+            --clean `
+            --name "KeyGen_ADMIN" `
+            keygen.py
+          if ($LASTEXITCODE -ne 0) { throw "KeyGen build failed" }
+          Pop-Location
+          $exe = "tools\license_system\dist\KeyGen_ADMIN.exe"
+          if (-not (Test-Path $exe)) { throw "KeyGen EXE not found at $exe" }
+          Write-Host "KeyGen size: $([math]::Round((Get-Item $exe).Length / 1MB, 2)) MB"
+          "path=$exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload KeyGen artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: keygen-admin-${{ steps.version.outputs.version }}
+          path: ${{ steps.keygen.outputs.path }}
+          retention-days: 90
+
+      # ── 14. Publish GitHub Release (tag builds only) ─────────────────────────
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -195,15 +228,22 @@ jobs:
             |------|-------------|
             | `pos_africa_setup_${{ steps.version.outputs.version }}.exe` | Windows Installer (recommended) |
             | `POS_Africa_${{ steps.version.outputs.version }}_Portable.zip` | Portable – no install needed |
+            | `KeyGen_ADMIN.exe` | **Admin only** — generate activation keys for customers |
 
             ### System Requirements
             - Windows 10 (v1809) or Windows 11, 64-bit
             - 50 MB disk space
 
             ### First Login
-            - Username: `admin`  Password: `admin123`
+            - Username: `admin`  Password: `master`
             - You will be prompted to change the password on first login.
+
+            ### License Activation
+            - Run `KeyGen_ADMIN.exe` (admin only, keep private)
+            - Customer sends their **Machine ID** from the activation screen
+            - Enter it in the keygen to produce a 12-character **Activation Key**
           files: |
             ${{ steps.installer.outputs.path }}
             ${{ steps.portable.outputs.path }}
+            ${{ steps.keygen.outputs.path }}
           generate_release_notes: true

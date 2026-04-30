@@ -27,6 +27,7 @@ import 'features/audit/presentation/screens/audit_screen.dart';
 import 'features/shop/presentation/screens/dashboard_screen.dart';
 import 'features/users/presentation/bloc/user_bloc.dart';
 import 'features/users/presentation/screens/user_management_screen.dart';
+import 'core/license/license_guard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -84,7 +85,7 @@ class CongoPosApp extends StatelessWidget {
             theme:     AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: themeMode,
-            home:      const AuthWrapper(),
+          home:      LicenseGuard(child: const AuthWrapper()),
             debugShowCheckedModeBanner: false,
           );
         },
