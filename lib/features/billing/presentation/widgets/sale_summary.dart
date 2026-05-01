@@ -34,11 +34,11 @@ class SaleSummary extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  _SummaryRow(label: 'Subtotal', value: 'CDF ${state.subtotal.toStringAsFixed(0)}'),
+                  _SummaryRow(label: 'Subtotal', value: 'FC ${state.subtotal.toStringAsFixed(0)}'),
                   const SizedBox(height: 8),
                   _SummaryRow(
                     label: 'Discount',
-                    value: '- CDF ${state.totalDiscount.toStringAsFixed(0)}',
+                    value: '- FC ${state.totalDiscount.toStringAsFixed(0)}',
                     valueColor: Colors.red,
                   ),
                   const Divider(height: 24),
@@ -50,7 +50,7 @@ class SaleSummary extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            'CDF ${state.grandTotal.toStringAsFixed(0)}',
+                            'FC ${state.grandTotal.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,

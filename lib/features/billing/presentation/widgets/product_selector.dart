@@ -198,7 +198,7 @@ class _ProductSelectorState extends State<ProductSelector> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'CDF ${product.sellingPrice.toStringAsFixed(0)}',
+                              'FC ${product.sellingPrice.toStringAsFixed(0)}',
                               style: TextStyle(
                                 color: Theme.of(ctx).colorScheme.primary,
                                 fontWeight: FontWeight.w500,

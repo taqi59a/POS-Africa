@@ -6,6 +6,7 @@ import '../../../../core/utils/stock_import_export_utils.dart';
 import '../bloc/inventory_bloc.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../widgets/product_label_dialog.dart';
 import 'add_edit_product_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -296,8 +297,8 @@ class _ProductTable extends StatelessWidget {
           DataColumn(label: Text('Category')),
           DataColumn(label: Text('SKU')),
           DataColumn(label: Text('Stock'), numeric: true),
-          DataColumn(label: Text('Cost (CDF)'), numeric: true),
-          DataColumn(label: Text('Price (CDF)'), numeric: true),
+          DataColumn(label: Text('Cost (FC)'), numeric: true),
+          DataColumn(label: Text('Price (FC)'), numeric: true),
           DataColumn(label: Text('Status')),
           DataColumn(label: Text('Actions')),
         ],
@@ -349,6 +350,11 @@ class _ProductTable extends StatelessWidget {
                     icon: const Icon(Icons.tune_outlined, size: 20),
                     tooltip: 'Adjust Stock',
                     onPressed: () => _showAdjustStockDialog(context, p),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.label_outline, size: 20),
+                    tooltip: 'Print Label',
+                    onPressed: () => ProductLabelDialog.show(context, p),
                   ),
                 ]),
               ),

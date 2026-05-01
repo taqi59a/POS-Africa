@@ -43,7 +43,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   leading: CircleAvatar(backgroundColor: Colors.red.shade50, child: const Icon(Icons.money_off, color: Colors.red)),
                   title: Text(expense.description, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${category.name} • ${expense.date.day}/${expense.date.month}/${expense.date.year}'),
-                  trailing: Text('CDF ${expense.amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  trailing: Text('FC ${expense.amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 );
               },
             );
@@ -71,7 +71,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               children: [
                 TextField(controller: descController, decoration: const InputDecoration(labelText: 'Description')),
                 const SizedBox(height: 12),
-                TextField(controller: amountController, decoration: const InputDecoration(labelText: 'Amount (CDF)'), keyboardType: TextInputType.number),
+                TextField(controller: amountController, decoration: const InputDecoration(labelText: 'Amount (FC)'), keyboardType: TextInputType.number),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
                   value: selectedCatId,

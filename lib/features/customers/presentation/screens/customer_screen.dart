@@ -91,7 +91,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                           children: [
                             if (customer.balanceOwed > 0)
                               Chip(
-                                label: Text('Owes: CDF ${customer.balanceOwed.toStringAsFixed(0)}'),
+                                label: Text('Owes: FC ${customer.balanceOwed.toStringAsFixed(0)}'),
                                 backgroundColor: Colors.red.shade50,
                                 labelStyle: const TextStyle(color: Colors.red, fontSize: 12),
                               ),

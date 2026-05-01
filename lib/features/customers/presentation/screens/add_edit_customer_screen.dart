@@ -101,7 +101,7 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _creditLimitController,
-                    decoration: const InputDecoration(labelText: 'Credit Limit (CDF)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Credit Limit (FC)', border: OutlineInputBorder()),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 32),

@@ -27,6 +27,8 @@ import 'features/audit/presentation/screens/audit_screen.dart';
 import 'features/shop/presentation/screens/dashboard_screen.dart';
 import 'features/users/presentation/bloc/user_bloc.dart';
 import 'features/users/presentation/screens/user_management_screen.dart';
+import 'features/returns/presentation/bloc/returns_bloc.dart';
+import 'features/returns/presentation/screens/returns_screen.dart';
 import 'core/license/license_guard.dart';
 
 void main() async {
@@ -66,6 +68,7 @@ class CongoPosApp extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<ExpenseBloc>()..add(LoadExpenses())),
         BlocProvider(create: (_) => di.sl<AuditBloc>()..add(LoadAuditLogs())),
         BlocProvider(create: (_) => di.sl<UserBloc>()..add(LoadUsers())),
+        BlocProvider(create: (_) => di.sl<ReturnsBloc>()),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         buildWhen: (prev, cur) {
@@ -135,6 +138,7 @@ class _DashboardShellState extends State<DashboardShell> {
     _NavItem(Icons.inventory_2_rounded,         'Inventory'),
     _NavItem(Icons.people_rounded,              'Customers'),
     _NavItem(Icons.receipt_long_rounded,        'Expenses'),
+    _NavItem(Icons.assignment_return_rounded,   'Returns'),
     _NavItem(Icons.bar_chart_rounded,           'Reports'),
     _NavItem(Icons.admin_panel_settings_rounded,'Users'),
     _NavItem(Icons.manage_history_rounded,      'Audit Log'),
@@ -148,10 +152,11 @@ class _DashboardShellState extends State<DashboardShell> {
       case 2: return const InventoryScreen();
       case 3: return const CustomerScreen();
       case 4: return const ExpenseScreen();
-      case 5: return const ReportScreen();
-      case 6: return const UserManagementScreen();
-      case 7: return const AuditScreen();
-      case 8: return const SettingsScreen();
+      case 5: return const ReturnsScreen();
+      case 6: return const ReportScreen();
+      case 7: return const UserManagementScreen();
+      case 8: return const AuditScreen();
+      case 9: return const SettingsScreen();
       default: return const SizedBox();
     }
   }

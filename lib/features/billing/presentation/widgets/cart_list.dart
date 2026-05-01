@@ -31,7 +31,7 @@ class CartList extends StatelessWidget {
             return ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('CDF ${item.product.sellingPrice.toStringAsFixed(0)} / unit'),
+              subtitle: Text('FC ${item.product.sellingPrice.toStringAsFixed(0)} / unit'),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -70,7 +70,7 @@ class CartList extends StatelessWidget {
                   SizedBox(
                     width: 100,
                     child: Text(
-                      'CDF ${item.lineTotal.toStringAsFixed(0)}',
+                      'FC ${item.lineTotal.toStringAsFixed(0)}',
                       textAlign: TextAlign.right,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),

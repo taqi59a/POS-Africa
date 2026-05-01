@@ -107,7 +107,7 @@ class _CustomerSearchBarState extends State<_CustomerSearchBar> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Owes: CDF ${selected.balanceOwed.toStringAsFixed(0)}',
+                  'Owes: FC ${selected.balanceOwed.toStringAsFixed(0)}',
                   style: TextStyle(fontSize: 11, color: Colors.red[700]),
                 ),
               ),
@@ -181,7 +181,7 @@ class _CustomerSearchBarState extends State<_CustomerSearchBar> {
                         title: Text(c.fullName),
                         subtitle: c.phone != null ? Text(c.phone!) : null,
                         trailing: c.balanceOwed > 0
-                            ? Text('Owes: CDF ${c.balanceOwed.toStringAsFixed(0)}',
+                            ? Text('Owes: FC ${c.balanceOwed.toStringAsFixed(0)}',
                                 style: const TextStyle(color: Colors.red, fontSize: 11))
                             : null,
                         onTap: () => onSelected(c),

@@ -151,7 +151,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         ),
                       ]),
                       const SizedBox(height: 24),
-                      Text('Pricing (CDF)', style: Theme.of(context).textTheme.titleMedium),
+                      Text('Pricing (FC)', style: Theme.of(context).textTheme.titleMedium),
                       const Divider(),
                       const SizedBox(height: 12),
                       Row(children: [

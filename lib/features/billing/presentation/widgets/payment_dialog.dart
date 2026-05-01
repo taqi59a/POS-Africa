@@ -141,7 +141,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                               style: TextStyle(
                                   letterSpacing: 1.2, fontWeight: FontWeight.w500)),
                           Text(
-                            'CDF ${grandTotalCdf.toStringAsFixed(0)}',
+                            'FC ${grandTotalCdf.toStringAsFixed(0)}',
                             style: const TextStyle(
                                 fontSize: 32, fontWeight: FontWeight.bold),
                           ),
@@ -153,7 +153,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             ),
                           if (vatAmount > 0)
                             Text(
-                              'Incl. VAT: CDF ${vatAmount.toStringAsFixed(0)}',
+                              'Incl. VAT: FC ${vatAmount.toStringAsFixed(0)}',
                               style: TextStyle(
                                   fontSize: 13, color: Colors.grey[600]),
                             ),
@@ -198,9 +198,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
                               controller: _cdfController,
                               autofocus: true,
                               decoration: const InputDecoration(
-                                labelText: 'Amount Tendered (CDF)',
+                                labelText: 'Amount Tendered (FC)',
                                 border: OutlineInputBorder(),
-                                prefixText: 'CDF ',
+                                prefixText: 'FC ',
                               ),
                               keyboardType: TextInputType.number,
                               onChanged: (val) {
@@ -253,7 +253,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Full amount CDF ${grandTotalCdf.toStringAsFixed(0)} will be added to ${selectedCustomer?.fullName ?? ""}\'s account.',
+                                'Full amount FC ${grandTotalCdf.toStringAsFixed(0)} will be added to ${selectedCustomer?.fullName ?? ""}\u0027s account.',
                                 style: const TextStyle(fontSize: 13),
                               ),
                             ),
@@ -280,7 +280,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                                     fontWeight: FontWeight.bold,
                                     color: Colors.green)),
                             Text(
-                              'CDF ${changeDue.toStringAsFixed(0)}',
+                              'FC ${changeDue.toStringAsFixed(0)}',
                               style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,

@@ -38,6 +38,8 @@ DefaultDirName={autopf}\\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 DirExistsWarning=no
+UsePreviousAppDir=yes
+UsePreviousTasks=yes
 
 ; Installer appearance
 WizardStyle=modern
@@ -101,10 +103,6 @@ Filename: "{app}\\{#MyAppExeName}"; Description: "Launch {#MyAppName} now"; \
 [UninstallRun]
 ; Nothing extra – the uninstaller removes {app} contents automatically
 
-[UninstallDelete]
-; Remove user data directory on uninstall (prompt is shown by code below)
-Type: filesandordirs; Name: "{userappdata}\\POS Africa"
-
 [Registry]
 ; App Paths so Windows "Run" dialog finds it
 Root: HKCU; Subkey: "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{#MyAppExeName}"; \
@@ -135,6 +133,10 @@ var
 begin
   if CurUninstallStep = usPostUninstall then
   begin
+    // During upgrade, Inno runs uninstall silently. Keep user data untouched.
+    if UninstallSilent then
+      Exit;
+
     dataDir := ExpandConstant('{userappdata}\POS Africa');
     if DirExists(dataDir) then
     begin

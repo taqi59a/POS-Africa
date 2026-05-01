@@ -21,7 +21,9 @@ jobs:
     runs-on: windows-latest
 
     env:
-      FLUTTER_CHANNEL: stable
+      # Pinned to a Flutter release that ships Dart >=3.11.1 <4.0.0
+      # Update this value when you need a newer SDK.
+      FLUTTER_VERSION: "3.32.0"
       BUILD_DIR: build\windows\x64\runner\Release
       INSTALLER_DIR: build\windows\installer
       PORTABLE_DIR: build\windows\portable
@@ -50,12 +52,15 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
           cache: true
 
-      - name: Flutter doctor
+      - name: Flutter version & doctor
         shell: pwsh
-        run: flutter doctor -v
+        run: |
+          flutter --version
+          flutter doctor -v
 
       # ── 4. Dependencies ─────────────────────────────────────────────────────
       - name: Pub get
@@ -64,7 +69,7 @@ jobs:
           flutter config --enable-windows-desktop
           flutter pub get
 
-      # ── 5. Code generation (Drift) ──────────────────────────────────────────
+      # ── 5. Code generation (Drift ORM) ──────────────────────────────────────
       - name: Build runner (generated code)
         shell: pwsh
         run: dart run build_runner build --delete-conflicting-outputs
@@ -84,6 +89,9 @@ jobs:
           $exe = "${{ env.BUILD_DIR }}\pos_africa.exe"
           if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
           Write-Host "EXE size: $([math]::Round((Get-Item $exe).Length / 1MB, 2)) MB"
+          # List all shipped DLLs so the build log shows what's bundled
+          Get-ChildItem "${{ env.BUILD_DIR }}" -Recurse -Include "*.dll" |
+            ForEach-Object { Write-Host "  $($_.Name)  $([math]::Round($_.Length/1KB,1)) KB" }
 
       # ── 8. Download VC++ 2022 redistributable ───────────────────────────────
       - name: Download VC++ redistributable
@@ -94,10 +102,13 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
           Write-Host "vc_redist downloaded: $([math]::Round((Get-Item $dest).Length / 1MB, 2)) MB"
 
-      # ── 9. Install Inno Setup ────────────────────────────────────────────────
+      # ── 9. Install Inno Setup 6 ──────────────────────────────────────────────
       - name: Install Inno Setup
         shell: pwsh
-        run: choco install innosetup -y --no-progress
+        run: |
+          choco install innosetup --version 6.3.3 -y --no-progress
+          # Verify iscc is on PATH
+          iscc /?  2>&1 | Select-Object -First 3
 
       # ── 10. Build installer EXE ──────────────────────────────────────────────
       - name: Build installer
@@ -121,6 +132,7 @@ jobs:
 
       # ── 11. Build portable ZIP ───────────────────────────────────────────────
       - name: Build portable ZIP
+        id: portable
         shell: pwsh
         run: |
           $ver     = "${{ steps.version.outputs.version }}"
@@ -138,9 +150,11 @@ jobs:
 
           System Requirements
           -------------------
-          • Windows 10 (1809) or Windows 11  –  64-bit
-          • 50 MB free disk space for the app
-          • 500 MB free disk space for data & backups
+          * Windows 10 (1809) or Windows 11  –  64-bit
+          * Visual C++ 2022 Runtime (x64) – download from https://aka.ms/vs/17/release/vc_redist.x64.exe
+            if you see a missing DLL error on first launch.
+          * 50 MB free disk space for the app
+          * 500 MB free disk space for data and backups
 
           First Run
           ---------
@@ -164,7 +178,6 @@ jobs:
           Write-Host "Portable ZIP: $zipPath  ($([math]::Round((Get-Item $zipPath).Length/1MB,2)) MB)"
           "path=$zipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "name=$zipName"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        id: portable
 
       # ── 12. Upload artifacts ─────────────────────────────────────────────────
       - name: Upload installer artifact
@@ -188,19 +201,29 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Install Python dependencies
+        shell: pwsh
+        run: pip install -r tools\license_system\requirements.txt
+
       - name: Build KeyGen_ADMIN.exe
         id: keygen
         shell: pwsh
         run: |
-          pip install pyinstaller --quiet
           Push-Location tools\license_system
           pyinstaller `
             --onefile `
             --windowed `
             --clean `
             --name "KeyGen_ADMIN" `
+            --hidden-import tkinter `
+            --hidden-import tkinter.messagebox `
+            --hidden-import tkinter.filedialog `
+            --hidden-import hashlib `
+            --collect-submodules tkinter `
+            --add-data "shared_crypto.py;." `
+            --add-data "license_store.py;." `
             keygen.py
-          if ($LASTEXITCODE -ne 0) { throw "KeyGen build failed" }
+          if ($LASTEXITCODE -ne 0) { throw "KeyGen PyInstaller build failed" }
           Pop-Location
           $exe = "tools\license_system\dist\KeyGen_ADMIN.exe"
           if (-not (Test-Path $exe)) { throw "KeyGen EXE not found at $exe" }
@@ -233,15 +256,20 @@ jobs:
             ### System Requirements
             - Windows 10 (v1809) or Windows 11, 64-bit
             - 50 MB disk space
+            - VC++ 2022 Runtime bundled inside the installer; portable edition users may need to install it manually if not already present
 
             ### First Login
             - Username: `admin`  Password: `master`
             - You will be prompted to change the password on first login.
 
             ### License Activation
-            - Run `KeyGen_ADMIN.exe` (admin only, keep private)
-            - Customer sends their **Machine ID** from the activation screen
-            - Enter it in the keygen to produce a 12-character **Activation Key**
+            - Run `KeyGen_ADMIN.exe` (admin only — keep private)
+            - Customer sends their **Machine ID** from the app's activation screen
+            - Enter it in KeyGen to produce the 12-character **Activation Key**
+
+            ### Upgrading
+            Run the new installer over the existing installation.
+            All data in `%APPDATA%\POS Africa` is preserved automatically.
           files: |
             ${{ steps.installer.outputs.path }}
             ${{ steps.portable.outputs.path }}

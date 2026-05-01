@@ -103,7 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Expanded(child: _MetricCard(
                           label: "Today's Revenue",
-                          value: 'CDF ${revenue.toStringAsFixed(0)}',
+                          value: 'FC ${revenue.toStringAsFixed(0)}',
                           icon:  Icons.trending_up_rounded,
                           color: AppTheme.accentGreen,
                           showAlert: false,

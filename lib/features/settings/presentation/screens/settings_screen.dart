@@ -376,7 +376,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Text('Currency & Exchange', style: Theme.of(context).textTheme.titleLarge),
                       const Divider(),
                       SwitchListTile(
-                        title: const Text('Enable Dual Currency (CDF/USD)'),
+                        title: const Text('Enable Dual Currency (FC/USD)'),
                         value: _dualCurrencyEnabled,
                         onChanged: (val) => setState(() => _dualCurrencyEnabled = val),
                       ),
@@ -385,9 +385,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         TextFormField(
                           controller: _exchangeRateController,
                           decoration: const InputDecoration(
-                            labelText: 'USD to CDF Exchange Rate (e.g. 2850)',
+                            labelText: 'USD to FC Exchange Rate (e.g. 2850)',
                             border: OutlineInputBorder(),
-                            suffixText: 'CDF',
+                            suffixText: 'FC',
                           ),
                           keyboardType: TextInputType.number,
                         ),

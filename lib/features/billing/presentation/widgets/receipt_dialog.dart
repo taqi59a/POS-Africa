@@ -176,7 +176,7 @@ class ReceiptDialog extends StatelessWidget {
                                                   fontWeight: FontWeight.w600)),
                                         ),
                                         Text(
-                                          'CDF ${item.lineTotal.toStringAsFixed(0)}',
+                                          'FC ${item.lineTotal.toStringAsFixed(0)}',
                                           style: const TextStyle(
                                               fontWeight: FontWeight.w600),
                                         ),
@@ -186,7 +186,7 @@ class ReceiptDialog extends StatelessWidget {
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            '  ${item.quantity.toStringAsFixed(0)} × CDF ${item.product.sellingPrice.toStringAsFixed(0)}',
+                                            '  ${item.quantity.toStringAsFixed(0)} × FC ${item.product.sellingPrice.toStringAsFixed(0)}',
                                             style: theme.textTheme.bodySmall,
                                           ),
                                         ),
@@ -205,16 +205,16 @@ class ReceiptDialog extends StatelessWidget {
                           const Divider(),
 
                           // ── Totals ──
-                          _Row(label: 'Subtotal', value: 'CDF ${receipt.subtotal.toStringAsFixed(0)}'),
+                          _Row(label: 'Subtotal', value: 'FC ${receipt.subtotal.toStringAsFixed(0)}'),
                           if (receipt.discount > 0)
                             _Row(
                                 label: 'Discount',
-                                value: '- CDF ${receipt.discount.toStringAsFixed(0)}',
+                                value: '- FC ${receipt.discount.toStringAsFixed(0)}',
                                 valueColor: Colors.orange),
                           if (vatEnabled && vatAmount > 0)
                             _Row(
                                 label: 'VAT ($vatPct% incl.)',
-                                value: 'CDF ${vatAmount.toStringAsFixed(0)}'),
+                                value: 'FC ${vatAmount.toStringAsFixed(0)}'),
                           const SizedBox(height: 6),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -226,7 +226,7 @@ class ReceiptDialog extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    'CDF ${receipt.grandTotal.toStringAsFixed(0)}',
+                                    'FC ${receipt.grandTotal.toStringAsFixed(0)}',
                                     style: TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.bold,
@@ -248,13 +248,25 @@ class ReceiptDialog extends StatelessWidget {
                           _Row(label: 'Method', value: receipt.paymentMethod),
                           _Row(
                               label: 'Tendered',
-                              value: 'CDF ${receipt.amountTendered.toStringAsFixed(0)}'),
+                              value: 'FC ${receipt.amountTendered.toStringAsFixed(0)}'),
                           if (receipt.changeDue > 0)
                             _Row(
                                 label: 'Change Due',
-                                value: 'CDF ${receipt.changeDue.toStringAsFixed(0)}',
+                                value: 'FC ${receipt.changeDue.toStringAsFixed(0)}',
                                 valueColor: Colors.green,
                                 bold: true),
+                          const SizedBox(height: 4),
+                          if (receipt.exchangeRate > 0)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                'Rate: ${receipt.exchangeRate.toStringAsFixed(0)} FC/\$',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: Colors.grey[500]),
+                              ),
+                            ),
 
                           const SizedBox(height: 16),
 
@@ -380,31 +392,39 @@ class ReceiptDialog extends StatelessWidget {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Expanded(child: pw.Text(item.product.name, style: normal(9))),
-                          pw.Text('CDF ${item.lineTotal.toStringAsFixed(0)}',
+                          pw.Text('FC ${item.lineTotal.toStringAsFixed(0)}',
                               style: normal(9)),
                         ],
                       ),
                       pw.Text(
-                          '  ${item.quantity.toStringAsFixed(0)} × CDF ${item.product.sellingPrice.toStringAsFixed(0)}',
+                          '  ${item.quantity.toStringAsFixed(0)} × FC ${item.product.sellingPrice.toStringAsFixed(0)}',
                           style: normal(8)),
                     ],
                   ),
                 )),
             pw.Divider(thickness: 0.5),
-            _pdfRow('Subtotal:', 'CDF ${r.subtotal.toStringAsFixed(0)}', normal),
+            _pdfRow('Subtotal:', 'FC ${r.subtotal.toStringAsFixed(0)}', normal),
             if (r.discount > 0)
-              _pdfRow('Discount:', '- CDF ${r.discount.toStringAsFixed(0)}', normal),
+              _pdfRow('Discount:', '- FC ${r.discount.toStringAsFixed(0)}', normal),
             if (r.vatAmount > 0)
-              _pdfRow('VAT (incl.):', 'CDF ${r.vatAmount.toStringAsFixed(0)}', normal),
+              _pdfRow('VAT (incl.):', 'FC ${r.vatAmount.toStringAsFixed(0)}', normal),
             pw.SizedBox(height: 3),
-            _pdfRow('TOTAL:', 'CDF ${r.grandTotal.toStringAsFixed(0)}', bold),
+            _pdfRow('TOTAL:', 'FC ${r.grandTotal.toStringAsFixed(0)}', bold),
             if (dualCurrency)
               _pdfRow('USD:', '\$${r.grandTotalUsd.toStringAsFixed(2)}', normal),
             pw.Divider(thickness: 0.5),
             _pdfRow('Payment:', r.paymentMethod, normal),
-            _pdfRow('Tendered:', 'CDF ${r.amountTendered.toStringAsFixed(0)}', normal),
+            _pdfRow('Tendered:', 'FC ${r.amountTendered.toStringAsFixed(0)}', normal),
             if (r.changeDue > 0)
-              _pdfRow('Change:', 'CDF ${r.changeDue.toStringAsFixed(0)}', normal),
+              _pdfRow('Change:', 'FC ${r.changeDue.toStringAsFixed(0)}', normal),
+            if (r.exchangeRate > 0)
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  'Rate: ${r.exchangeRate.toStringAsFixed(0)} FC/\$',
+                  style: normal(7),
+                ),
+              ),
             pw.SizedBox(height: 12),
             pw.Center(
               child: pw.Text(footer,

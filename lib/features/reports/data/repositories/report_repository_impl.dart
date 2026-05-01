@@ -24,6 +24,9 @@ class ReportRepositoryImpl implements ReportRepository {
       'discount': sales.fold(0, (s, e) => s + e.discountAmount),
       'tax': sales.fold(0, (s, e) => s + e.vatAmount),
       'total': sales.fold(0, (s, e) => s + e.grandTotal),
+      'totalUsd': sales.fold(0, (s, e) => s + e.grandTotalUsd),
+      // Latest exchange rate used today (last sale)
+      'exchangeRate': sales.isEmpty ? 0 : sales.last.exchangeRateUsed,
     };
   }
 
@@ -88,6 +91,8 @@ class ReportRepositoryImpl implements ReportRepository {
         'transactionNumber': sale.transactionNumber,
         'saleDate': sale.saleDate,
         'grandTotal': sale.grandTotal,
+        'grandTotalUsd': sale.grandTotalUsd,
+        'exchangeRate': sale.exchangeRateUsed,
         'vatAmount': sale.vatAmount,
         'discount': sale.discountAmount,
         'status': sale.status,
@@ -107,9 +112,11 @@ class ReportRepositoryImpl implements ReportRepository {
             ..where((t) => t.customerId.equals(c.id) & t.status.equals('COMPLETED')))
           .get();
       final totalSpent = sales.fold<double>(0, (s, sale) => s + sale.grandTotal);
+      final totalSpentUsd = sales.fold<double>(0, (s, sale) => s + sale.grandTotalUsd);
       final lastSale = sales.isEmpty
           ? null
           : sales.map((s) => s.saleDate).reduce((a, b) => a.isAfter(b) ? a : b);
+      final lastRate = sales.isEmpty ? 0.0 : sales.last.exchangeRateUsed;
       results.add({
         'id': c.id,
         'fullName': c.fullName,
@@ -118,7 +125,9 @@ class ReportRepositoryImpl implements ReportRepository {
         'creditLimit': c.creditLimit,
         'totalPurchases': sales.length,
         'totalSpent': totalSpent,
+        'totalSpentUsd': totalSpentUsd,
         'lastPurchase': lastSale,
+        'exchangeRate': lastRate,
       });
     }
     results.sort((a, b) =>
@@ -151,6 +160,8 @@ class ReportRepositoryImpl implements ReportRepository {
         'transactionNumber': sale.transactionNumber,
         'saleDate': sale.saleDate,
         'grandTotal': sale.grandTotal,
+        'grandTotalUsd': sale.grandTotalUsd,
+        'exchangeRate': sale.exchangeRateUsed,
         'status': sale.status,
         'customerName': customer?.fullName ?? 'Unknown',
         'customerId': sale.customerId,

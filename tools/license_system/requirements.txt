@@ -1,2 +1,4 @@
 pyinstaller>=6.0.0
 pyarmor>=8.5.0
+# hashlib, tkinter, tkinter.messagebox, tkinter.filedialog are stdlib —
+# listed here only for documentation; no pip install needed for them.

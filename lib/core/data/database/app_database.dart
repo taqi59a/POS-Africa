@@ -20,6 +20,8 @@ import 'tables/sale_lines.dart';
 import 'tables/payments.dart';
 import 'tables/expenses.dart';
 import 'tables/exchange_rate_history.dart';
+import 'tables/sale_returns.dart';
+import 'tables/return_lines.dart';
 import '../../utils/password_utils.dart';
 
 part 'app_database.g.dart';
@@ -41,12 +43,14 @@ part 'app_database.g.dart';
   ExpenseCategories,
   Expenses,
   ExchangeRateHistory,
+  SaleReturns,
+  ReturnLines,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -80,6 +84,11 @@ class AppDatabase extends _$AppDatabase {
               failedLoginAttempts: const Value(0),
             ),
           );
+        }
+        if (from < 5) {
+          // Add return management tables
+          await m.createTable(saleReturns);
+          await m.createTable(returnLines);
         }
       },
       beforeOpen: (details) async {

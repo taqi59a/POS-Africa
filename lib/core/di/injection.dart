@@ -25,6 +25,9 @@ import '../../features/audit/domain/repositories/audit_repository.dart';
 import '../../features/audit/data/repositories/audit_repository_impl.dart';
 import '../../features/audit/presentation/bloc/audit_bloc.dart';
 import '../../features/users/presentation/bloc/user_bloc.dart';
+import '../../features/returns/domain/repositories/returns_repository.dart';
+import '../../features/returns/data/repositories/returns_repository_impl.dart';
+import '../../features/returns/presentation/bloc/returns_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -42,6 +45,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<ReportRepository>(() => ReportRepositoryImpl(sl()));
   sl.registerLazySingleton<ExpenseRepository>(() => ExpenseRepositoryImpl(sl()));
   sl.registerLazySingleton<AuditRepository>(() => AuditRepositoryImpl(sl()));
+  sl.registerLazySingleton<ReturnsRepository>(() => ReturnsRepositoryImpl(sl()));
 
   // Blocs (factory so each page gets a fresh instance)
   sl.registerFactory(() => AuthBloc(sl()));
@@ -53,4 +57,5 @@ Future<void> initDependencies() async {
   sl.registerFactory(() => ExpenseBloc(sl()));
   sl.registerFactory(() => AuditBloc(sl()));
   sl.registerFactory(() => UserBloc(sl()));
+  sl.registerFactory(() => ReturnsBloc(sl()));
 }

@@ -187,11 +187,13 @@ Billing (POS):
 - Sale creation and cart-based checkout
 - Payment capture records
 - Sale line persistence
+- All monetary amounts stored and displayed in FC (Congolese Franc); USD shown as secondary where dual-currency is enabled
 
 Inventory:
 - Product/category/supplier linked catalog
 - Stock movement tracking
 - Low stock behavior through settings thresholds
+- Product label printing: thermal receipt printer labels (58 mm) showing product name and FC price
 
 Customers:
 - Customer profile CRUD for retail relationships
@@ -199,15 +201,25 @@ Customers:
 Expenses:
 - Expense category and expense tracking for operations
 
+Returns (Sales/Purchase Returns):
+- `sale_returns` table: return header with original sale reference, refund method, exchange rate snapshot, and USD/FC totals
+- `return_lines` table: per-product line linking to original sale lines with stock restoration on processing and re-deduction on void
+- Return number format: `RTN-YYYYMMDD-XXXX`
+- Stock movements recorded for every return and void action
+- Original sale status updated to REFUNDED when all quantities are returned
+
 Reports:
 - Aggregated reporting queries across sales, inventory, and expenses
+- All PDF exports show USD as primary monetary column; FC values shown as secondary
+- Exchange rate in use at transaction time is shown in the top-right corner of every PDF report
+- On-screen DataTable columns use FC labels consistently
 
 Audit:
 - Time-based immutable event-style business log viewing
 
 Settings:
 - Business identity values
-- Currency and VAT toggles
+- Currency and VAT toggles (displayed as FC/USD)
 - Receipt and behavior defaults
 
 ## 9. Security and Reliability
@@ -238,6 +250,7 @@ Distribution strategy implemented:
 - Inno Setup script packages the complete Release folder
 - Output is one installer executable for user-friendly installation
 - Installer creates Start Menu entry and optional desktop shortcut
+- Every new installer must perform an in-place upgrade of existing POS Africa installations (same AppId), preserving all user data/configuration and maintaining backward compatibility so reinstalling with a newer installer applies updates without disrupting existing workflows.
 
 Automation path:
 - scripts/windows/build_release_installer.ps1
