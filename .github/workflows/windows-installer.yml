@@ -23,7 +23,7 @@ jobs:
     env:
       # Pinned to a Flutter release that ships Dart >=3.11.1 <4.0.0
       # Update this value when you need a newer SDK.
-      FLUTTER_VERSION: "3.32.0"
+      FLUTTER_VERSION: "3.41.9"
       BUILD_DIR: build\windows\x64\runner\Release
       INSTALLER_DIR: build\windows\installer
       PORTABLE_DIR: build\windows\portable
