@@ -15,19 +15,28 @@ class CartItem extends Equatable {
   final Product product;
   final double quantity;
   final double discount;
+  final double? unitPriceOverride;
 
-  const CartItem({required this.product, required this.quantity, this.discount = 0});
+  const CartItem({
+    required this.product,
+    required this.quantity,
+    this.discount = 0,
+    this.unitPriceOverride,
+  });
 
-  double get lineTotal => (product.sellingPrice * quantity) - discount;
+  double get unitPrice => unitPriceOverride ?? product.sellingPrice;
 
-  CartItem copyWith({double? quantity, double? discount}) => CartItem(
+  double get lineTotal => (unitPrice * quantity) - discount;
+
+  CartItem copyWith({double? quantity, double? discount, double? unitPriceOverride}) => CartItem(
     product: product,
     quantity: quantity ?? this.quantity,
     discount: discount ?? this.discount,
+    unitPriceOverride: unitPriceOverride ?? this.unitPriceOverride,
   );
 
   @override
-  List<Object?> get props => [product, quantity, discount];
+  List<Object?> get props => [product, quantity, discount, unitPriceOverride];
 }
 
 class CompletedSaleReceipt {
@@ -93,6 +102,12 @@ class RemoveFromCart extends SalesEvent {
   const RemoveFromCart(this.productId);
 }
 
+class UpdateCartItemUnitPrice extends SalesEvent {
+  final int productId;
+  final double unitPrice;
+  const UpdateCartItemUnitPrice(this.productId, this.unitPrice);
+}
+
 class ApplyGlobalDiscount extends SalesEvent {
   final double amount;
   const ApplyGlobalDiscount(this.amount);
@@ -147,7 +162,7 @@ class SalesState extends Equatable {
     this.selectedCustomer,
   });
 
-  double get subtotal => cart.fold(0.0, (s, i) => s + (i.product.sellingPrice * i.quantity));
+  double get subtotal => cart.fold(0.0, (s, i) => s + (i.unitPrice * i.quantity));
   double get totalDiscount => cart.fold(0.0, (s, i) => s + i.discount) + globalDiscount;
   double get grandTotal => subtotal - totalDiscount;
 
@@ -186,6 +201,7 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
     on<AddProductToCart>(_onAddToCart);
     on<UpdateCartItemQuantity>(_onUpdateQuantity);
     on<RemoveFromCart>(_onRemoveFromCart);
+    on<UpdateCartItemUnitPrice>(_onUpdateUnitPrice);
     on<ApplyGlobalDiscount>(_onApplyGlobalDiscount);
     on<SetSelectedCustomer>(_onSetSelectedCustomer);
     on<CompleteSale>(_onCompleteSale);
@@ -214,6 +230,18 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
 
   void _onRemoveFromCart(RemoveFromCart event, Emitter<SalesState> emit) {
     emit(state.copyWith(cart: state.cart.where((i) => i.product.id != event.productId).toList()));
+  }
+
+  void _onUpdateUnitPrice(UpdateCartItemUnitPrice event, Emitter<SalesState> emit) {
+    final newCart = state.cart.map((i) {
+      if (i.product.id != event.productId) return i;
+      // Never allow a temporary sale price below product cost price.
+      final guarded = event.unitPrice < i.product.costPrice
+          ? i.product.costPrice
+          : event.unitPrice;
+      return i.copyWith(unitPriceOverride: guarded);
+    }).toList();
+    emit(state.copyWith(cart: newCart));
   }
 
   void _onApplyGlobalDiscount(ApplyGlobalDiscount event, Emitter<SalesState> emit) {
@@ -251,7 +279,7 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
         saleId: 0,
         productName: item.product.name,
         quantity: item.quantity,
-        unitPrice: item.product.sellingPrice,
+        unitPrice: item.unitPrice,
         discountAmount: Value(item.discount),
         lineTotal: item.lineTotal,
       )).toList();

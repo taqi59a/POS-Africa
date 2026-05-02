@@ -100,13 +100,15 @@ SYSTEM REQUIREMENTS
 FIRST RUN
 ---------
   1. Double-click pos_africa.exe
-  2. Log in with:   Username: admin   Password: admin123
+  2. Log in with:   Username: admin   Password: master
   3. You will be asked to change the password immediately.
 
 DATA STORAGE
 ------------
-  Database and backups are stored in:
-    %APPDATA%\POS Africa\
+  Database and backups are stored under:
+    %USERPROFILE%\Documents\CongoPOS\
+  Main database file:
+    %USERPROFILE%\Documents\CongoPOS\db.sqlite
 
   This folder is SEPARATE from the application folder, so upgrading
   or moving this portable folder will NOT affect your data.
@@ -114,7 +116,7 @@ DATA STORAGE
 UPDATING
 --------
   Replace the contents of this folder with the newer version.
-  Your %APPDATA%\POS Africa\ data is untouched.
+  Your %USERPROFILE%\Documents\CongoPOS\ data is untouched.
 
 SUPPORT
 -------

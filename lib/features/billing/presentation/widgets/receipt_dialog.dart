@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:barcode/barcode.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pdf/pdf.dart';
@@ -39,7 +40,6 @@ class ReceiptDialog extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Header bar ──
                 Container(
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
@@ -60,7 +60,7 @@ class ReceiptDialog extends StatelessWidget {
                                     color: colorScheme.onPrimaryContainer)),
                             Text(receipt.transactionNumber,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onPrimaryContainer.withOpacity(0.75))),
+                                color: colorScheme.onPrimaryContainer.withOpacity(0.75))),
                           ],
                         ),
                       ),
@@ -81,15 +81,12 @@ class ReceiptDialog extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // ── Receipt body ──
                 Flexible(
                   child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                       child: Column(
                         children: [
-                          // Logo
                           if (logoPath.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 12),
@@ -103,8 +100,6 @@ class ReceiptDialog extends StatelessWidget {
                                 ),
                               ),
                             ),
-
-                          // Business info
                           Text(businessName,
                               style: theme.textTheme.titleLarge
                                   ?.copyWith(fontWeight: FontWeight.bold),
@@ -129,30 +124,27 @@ class ReceiptDialog extends StatelessWidget {
                           ],
                           const SizedBox(height: 12),
                           const Divider(),
-
-                          // Customer row (if not walk-in)
                           if (receipt.customerName != null) ...[
                             Row(
                               children: [
                                 const Icon(Icons.person_outline, size: 14),
                                 const SizedBox(width: 4),
                                 Text(receipt.customerName!,
-                                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(fontWeight: FontWeight.w600)),
                               ],
                             ),
                             const SizedBox(height: 4),
                           ],
-
-                          // Date / cashier row
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                '${receipt.saleDate.day.toString().padLeft(2,'0')}/'
-                                '${receipt.saleDate.month.toString().padLeft(2,'0')}/'
+                                '${receipt.saleDate.day.toString().padLeft(2, '0')}/'
+                                '${receipt.saleDate.month.toString().padLeft(2, '0')}/'
                                 '${receipt.saleDate.year}  '
-                                '${receipt.saleDate.hour.toString().padLeft(2,'0')}:'
-                                '${receipt.saleDate.minute.toString().padLeft(2,'0')}',
+                                '${receipt.saleDate.hour.toString().padLeft(2, '0')}:'
+                                '${receipt.saleDate.minute.toString().padLeft(2, '0')}',
                                 style: theme.textTheme.bodySmall,
                               ),
                               Text(receipt.transactionNumber,
@@ -161,8 +153,6 @@ class ReceiptDialog extends StatelessWidget {
                             ],
                           ),
                           const Divider(),
-
-                          // ── Line items ──
                           ...receipt.items.map((item) => Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 4),
                                 child: Column(
@@ -186,7 +176,7 @@ class ReceiptDialog extends StatelessWidget {
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            '  ${item.quantity.toStringAsFixed(0)} × FC ${item.product.sellingPrice.toStringAsFixed(0)}',
+                                            '  ${item.quantity.toStringAsFixed(0)} x FC ${item.unitPrice.toStringAsFixed(0)}',
                                             style: theme.textTheme.bodySmall,
                                           ),
                                         ),
@@ -201,10 +191,7 @@ class ReceiptDialog extends StatelessWidget {
                                   ],
                                 ),
                               )),
-
                           const Divider(),
-
-                          // ── Totals ──
                           _Row(label: 'Subtotal', value: 'FC ${receipt.subtotal.toStringAsFixed(0)}'),
                           if (receipt.discount > 0)
                             _Row(
@@ -243,8 +230,6 @@ class ReceiptDialog extends StatelessWidget {
                             ],
                           ),
                           const Divider(),
-
-                          // ── Payment info ──
                           _Row(label: 'Method', value: receipt.paymentMethod),
                           _Row(
                               label: 'Tendered',
@@ -267,22 +252,41 @@ class ReceiptDialog extends StatelessWidget {
                                     ?.copyWith(color: Colors.grey[500]),
                               ),
                             ),
-
-                          const SizedBox(height: 16),
-
-                          // Footer
-                          Text(footer,
-                              style:
-                                  theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                          const SizedBox(height: 12),
+                          Text(receipt.transactionNumber,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.3),
                               textAlign: TextAlign.center),
+                          const SizedBox(height: 8),
+                          Text(footer,
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: Colors.grey),
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Developed by',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: 9,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          Text(
+                            'www.taqiabbas.com',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: 12),
                         ],
                       ),
                     ),
                   ),
                 ),
-
-                // ── Action bar ──
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Row(
@@ -343,7 +347,7 @@ class ReceiptDialog extends StatelessWidget {
     }
 
     final pageWidth = widthMm * PdfPageFormat.mm;
-    final margin    = (widthMm >= 100 ? 8.0 : 4.0) * PdfPageFormat.mm;
+    final margin = (widthMm >= 100 ? 8.0 : 4.0) * PdfPageFormat.mm;
 
     pw.TextStyle bold(double size) =>
         pw.TextStyle(fontSize: size, fontWeight: pw.FontWeight.bold);
@@ -373,16 +377,15 @@ class ReceiptDialog extends StatelessWidget {
               children: [
                 pw.Text(r.transactionNumber, style: normal(8)),
                 pw.Text(
-                    '${r.saleDate.day.toString().padLeft(2,'0')}/'
-                    '${r.saleDate.month.toString().padLeft(2,'0')}/'
+                    '${r.saleDate.day.toString().padLeft(2, '0')}/'
+                    '${r.saleDate.month.toString().padLeft(2, '0')}/'
                     '${r.saleDate.year} '
-                    '${r.saleDate.hour.toString().padLeft(2,'0')}:'
-                    '${r.saleDate.minute.toString().padLeft(2,'0')}',
+                    '${r.saleDate.hour.toString().padLeft(2, '0')}:'
+                    '${r.saleDate.minute.toString().padLeft(2, '0')}',
                     style: normal(8)),
               ],
             ),
             pw.Divider(thickness: 0.5),
-            // Items
             ...r.items.map((item) => pw.Padding(
                   padding: const pw.EdgeInsets.symmetric(vertical: 2),
                   child: pw.Column(
@@ -397,7 +400,7 @@ class ReceiptDialog extends StatelessWidget {
                         ],
                       ),
                       pw.Text(
-                          '  ${item.quantity.toStringAsFixed(0)} × FC ${item.product.sellingPrice.toStringAsFixed(0)}',
+                          '  ${item.quantity.toStringAsFixed(0)} x FC ${item.unitPrice.toStringAsFixed(0)}',
                           style: normal(8)),
                     ],
                   ),
@@ -425,11 +428,33 @@ class ReceiptDialog extends StatelessWidget {
                   style: normal(7),
                 ),
               ),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.BarcodeWidget(
+                barcode: Barcode.code128(),
+                data: r.transactionNumber,
+                drawText: false,
+                width: pageWidth - (margin * 2),
+                height: 26,
+              ),
+            ),
+            pw.SizedBox(height: 2),
+            pw.Text(r.transactionNumber, style: normal(7)),
+            pw.SizedBox(height: 8),
             pw.Center(
               child: pw.Text(footer,
                   style: normal(8), textAlign: pw.TextAlign.center),
             ),
+            pw.SizedBox(height: 4),
+            pw.Text('Developed by',
+                style: pw.TextStyle(fontSize: 6, color: PdfColors.grey600),
+                textAlign: pw.TextAlign.center),
+            pw.Text('www.taqiabbas.com',
+                style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    letterSpacing: 0.2),
+                textAlign: pw.TextAlign.center),
           ],
         );
       },

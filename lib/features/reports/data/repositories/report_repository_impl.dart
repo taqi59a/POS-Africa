@@ -21,12 +21,120 @@ class ReportRepositoryImpl implements ReportRepository {
     return {
       'count': sales.length.toDouble(),
       'subtotal': sales.fold(0, (s, e) => s + e.subtotal),
+      'subtotalUsd': sales.fold(0, (s, e) => s + (e.exchangeRateUsed > 0 ? e.subtotal / e.exchangeRateUsed : 0)),
       'discount': sales.fold(0, (s, e) => s + e.discountAmount),
       'tax': sales.fold(0, (s, e) => s + e.vatAmount),
       'total': sales.fold(0, (s, e) => s + e.grandTotal),
       'totalUsd': sales.fold(0, (s, e) => s + e.grandTotalUsd),
       // Latest exchange rate used today (last sale)
       'exchangeRate': sales.isEmpty ? 0 : sales.last.exchangeRateUsed,
+    };
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getDailySalesDetailed(DateTime date) async {
+    final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
+    return getSalesReport(start, end);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getSalesAndProfitReport(
+    DateTime start,
+    DateTime end, {
+    int? cashierId,
+  }) async {
+    final base = _db.select(_db.sales).join([
+      leftOuterJoin(_db.customers, _db.customers.id.equalsExp(_db.sales.customerId)),
+      leftOuterJoin(_db.users, _db.users.id.equalsExp(_db.sales.cashierId)),
+    ])
+      ..where(_db.sales.saleDate.isBetweenValues(start, _endOfDay(end)) &
+          _db.sales.status.equals('COMPLETED'))
+      ..orderBy([OrderingTerm.desc(_db.sales.saleDate)]);
+
+    if (cashierId != null) {
+      base.where(_db.sales.cashierId.equals(cashierId));
+    }
+
+    final saleRows = await base.get();
+    final expensesDetailed = await getExpensesDetailed(start, end);
+
+    final details = <Map<String, dynamic>>[];
+    final byCashier = <String, Map<String, dynamic>>{};
+
+    double totalSales = 0;
+    double totalCogs = 0;
+
+    for (final row in saleRows) {
+      final sale = row.readTable(_db.sales);
+      final customer = row.readTableOrNull(_db.customers);
+      final cashier = row.readTableOrNull(_db.users);
+
+      final lines = await (_db.select(_db.saleLines)
+            ..where((t) => t.saleId.equals(sale.id)))
+          .get();
+
+      double cogs = 0;
+      for (final l in lines) {
+        final p = await (_db.select(_db.products)
+              ..where((t) => t.id.equals(l.productId)))
+            .getSingleOrNull();
+        final cost = p?.costPrice ?? 0.0;
+        cogs += cost * l.quantity;
+      }
+
+      final grossProfit = sale.grandTotal - cogs;
+      totalSales += sale.grandTotal;
+      totalCogs += cogs;
+
+      final cashierName = cashier?.username ?? 'Unknown';
+      final cashierIdValue = sale.cashierId;
+      final bucket = byCashier.putIfAbsent(cashierName, () => {
+        'cashierId': cashierIdValue,
+            'cashierName': cashierName,
+            'salesTotal': 0.0,
+            'cogsTotal': 0.0,
+            'grossProfit': 0.0,
+            'transactions': 0,
+          });
+      bucket['salesTotal'] = (bucket['salesTotal'] as double) + sale.grandTotal;
+      bucket['cogsTotal'] = (bucket['cogsTotal'] as double) + cogs;
+      bucket['grossProfit'] = (bucket['grossProfit'] as double) + grossProfit;
+      bucket['transactions'] = (bucket['transactions'] as int) + 1;
+
+      details.add({
+        'saleId': sale.id,
+        'transactionNumber': sale.transactionNumber,
+        'saleDate': sale.saleDate,
+        'customerName': customer?.fullName ?? 'Walk-in',
+        'cashierName': cashierName,
+        'subtotal': sale.subtotal,
+        'discount': sale.discountAmount,
+        'vatAmount': sale.vatAmount,
+        'netSale': sale.grandTotal,
+        'costOfGoods': cogs,
+        'grossProfit': grossProfit,
+      });
+    }
+
+    final totalExpenses = expensesDetailed.fold<double>(
+      0,
+      (s, e) => s + (e['amount'] as double? ?? 0),
+    );
+    final grossProfit = totalSales - totalCogs;
+    final netProfit = grossProfit - totalExpenses;
+
+    return {
+      'summary': {
+        'salesNet': totalSales,
+        'costOfGoods': totalCogs,
+        'grossProfit': grossProfit,
+        'expenses': totalExpenses,
+        'netProfit': netProfit,
+      },
+      'details': details,
+      'expenses': expensesDetailed,
+      'byCashier': byCashier.values.toList(),
     };
   }
 

@@ -31,6 +31,14 @@ class LoadSalesReport extends ReportEvent {
   @override List<Object> get props => [start, end];
 }
 
+class LoadSalesProfitReport extends ReportEvent {
+  final DateTime start;
+  final DateTime end;
+  final int? cashierId;
+  const LoadSalesProfitReport(this.start, this.end, {this.cashierId});
+  @override List<Object?> get props => [start, end, cashierId];
+}
+
 class LoadCustomerLedger extends ReportEvent {
   const LoadCustomerLedger();
 }
@@ -100,6 +108,9 @@ class ReportDataState extends ReportState {
   // Sales report
   final bool isLoadingSalesReport;
   final List<Map<String, dynamic>>? salesReport;
+  // Sales + profit report
+  final bool isLoadingSalesProfitReport;
+  final Map<String, dynamic>? salesProfitReport;
   // Customer ledger
   final bool isLoadingCustomerLedger;
   final List<Map<String, dynamic>>? customerLedger;
@@ -133,6 +144,8 @@ class ReportDataState extends ReportState {
     this.inventoryValuation,
     this.isLoadingSalesReport = false,
     this.salesReport,
+    this.isLoadingSalesProfitReport = false,
+    this.salesProfitReport,
     this.isLoadingCustomerLedger = false,
     this.customerLedger,
     this.isLoadingCustomerPurchases = false,
@@ -155,6 +168,7 @@ class ReportDataState extends ReportState {
     bool? isLoadingTopProducts, List<Map<String, dynamic>>? topProducts,
     bool? isLoadingInventory, double? inventoryValuation,
     bool? isLoadingSalesReport, List<Map<String, dynamic>>? salesReport,
+    bool? isLoadingSalesProfitReport, Map<String, dynamic>? salesProfitReport,
     bool? isLoadingCustomerLedger, List<Map<String, dynamic>>? customerLedger,
     bool? isLoadingCustomerPurchases, List<Map<String, dynamic>>? customerPurchases,
     bool? isLoadingExpenseReport, List<Map<String, dynamic>>? expenseReport,
@@ -173,6 +187,9 @@ class ReportDataState extends ReportState {
       inventoryValuation: inventoryValuation ?? this.inventoryValuation,
       isLoadingSalesReport: isLoadingSalesReport ?? this.isLoadingSalesReport,
       salesReport: salesReport ?? this.salesReport,
+        isLoadingSalesProfitReport:
+          isLoadingSalesProfitReport ?? this.isLoadingSalesProfitReport,
+        salesProfitReport: salesProfitReport ?? this.salesProfitReport,
       isLoadingCustomerLedger: isLoadingCustomerLedger ?? this.isLoadingCustomerLedger,
       customerLedger: customerLedger ?? this.customerLedger,
       isLoadingCustomerPurchases: isLoadingCustomerPurchases ?? this.isLoadingCustomerPurchases,
@@ -195,6 +212,7 @@ class ReportDataState extends ReportState {
   List<Object?> get props => [
     isLoadingDaily, dailySummary, isLoadingTopProducts, topProducts,
     isLoadingInventory, inventoryValuation, isLoadingSalesReport, salesReport,
+    isLoadingSalesProfitReport, salesProfitReport,
     isLoadingCustomerLedger, customerLedger, isLoadingCustomerPurchases, customerPurchases,
     isLoadingExpenseReport, expenseReport, isLoadingInventoryReport, inventoryReport,
     isLoadingProductHistory, productHistory, isLoadingReceipts, receiptSearchResults,
@@ -222,6 +240,7 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     on<LoadTopProducts>(_onLoadTopProducts);
     on<LoadInventoryValuation>(_onLoadInventoryValuation);
     on<LoadSalesReport>(_onLoadSalesReport);
+    on<LoadSalesProfitReport>(_onLoadSalesProfitReport);
     on<LoadCustomerLedger>(_onLoadCustomerLedger);
     on<LoadCustomerPurchases>(_onLoadCustomerPurchases);
     on<LoadExpenseReport>(_onLoadExpenseReport);
@@ -271,6 +290,24 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
       emit(_cur.copyWith(isLoadingSalesReport: false, salesReport: data));
     } catch (e) {
       emit(_cur.copyWith(isLoadingSalesReport: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onLoadSalesProfitReport(
+      LoadSalesProfitReport event, Emitter<ReportState> emit) async {
+    emit(_cur.copyWith(isLoadingSalesProfitReport: true, error: null));
+    try {
+      final data = await _repo.getSalesAndProfitReport(
+        event.start,
+        event.end,
+        cashierId: event.cashierId,
+      );
+      emit(_cur.copyWith(
+        isLoadingSalesProfitReport: false,
+        salesProfitReport: data,
+      ));
+    } catch (e) {
+      emit(_cur.copyWith(isLoadingSalesProfitReport: false, error: e.toString()));
     }
   }
 

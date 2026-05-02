@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:barcode/barcode.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pdf/pdf.dart';
@@ -114,6 +115,7 @@ class _ReportScreenState extends State<ReportScreen>
   // Sales Report
   DateTime _salesStart = DateTime.now().subtract(const Duration(days: 30));
   DateTime _salesEnd = DateTime.now();
+  int? _salesCashierId;
 
   // Customer Purchases
   DateTime _custStart = DateTime.now().subtract(const Duration(days: 30));
@@ -156,10 +158,16 @@ class _ReportScreenState extends State<ReportScreen>
     switch (i) {
       case 0:
         b.add(LoadDailySalesSummary(_overviewDate));
+        b.add(LoadSalesReport(_startOfDay(_overviewDate), _endOfDay(_overviewDate)));
         b.add(LoadInventoryValuation());
         break;
       case 1:
         b.add(LoadSalesReport(_startOfDay(_salesStart), _endOfDay(_salesEnd)));
+        b.add(LoadSalesProfitReport(
+          _startOfDay(_salesStart),
+          _endOfDay(_salesEnd),
+          cashierId: _salesCashierId,
+        ));
         break;
       case 2:
         b.add(const LoadCustomerLedger());
@@ -256,6 +264,41 @@ class _ReportScreenState extends State<ReportScreen>
               _buildSummaryTable(state.dailySummary!),
             ] else
               pw.Text('No sales data.', style: const pw.TextStyle(fontSize: 10)),
+            pw.SizedBox(height: 10),
+            pw.Text('Daily Transactions',
+                style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blueGrey800)),
+            pw.SizedBox(height: 4),
+            if (state.salesReport != null && state.salesReport!.isNotEmpty)
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(2.4),
+                  1: const pw.FlexColumnWidth(1.8),
+                  2: const pw.FlexColumnWidth(2.6),
+                  3: const pw.FlexColumnWidth(1.6),
+                  4: const pw.FlexColumnWidth(1.5),
+                },
+                children: [
+                  _pdfHeaderRow(['Receipt #', 'Time', 'Customer', 'FC', 'Status']),
+                  ...state.salesReport!.asMap().entries.map((e) {
+                    final r = e.value;
+                    final dt = r['saleDate'] as DateTime;
+                    return _pdfDataRow([
+                      r['transactionNumber']?.toString() ?? '',
+                      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
+                      r['customerName']?.toString() ?? 'Walk-in',
+                      _fmtFc(r['grandTotal'] as double? ?? 0),
+                      r['status']?.toString() ?? '',
+                    ], isEven: e.key.isEven);
+                  }),
+                ],
+              )
+            else
+              pw.Text('No completed transactions for this day.',
+                  style: const pw.TextStyle(fontSize: 10)),
             pw.SizedBox(height: 18),
           ],
           if (!salesOnly) ...[
@@ -345,7 +388,8 @@ class _ReportScreenState extends State<ReportScreen>
         ],
       );
 
-  Future<void> _exportSalesPdf(List<Map<String, dynamic>> rows) async {
+  Future<void> _exportSalesPdf(
+      List<Map<String, dynamic>> rows, Map<String, dynamic>? profitData) async {
     final s = _settings(context);
     final logo = await _loadLogo(s['business_logo_path'] ?? '');
     // Determine the exchange rate from the first row that has one
@@ -356,6 +400,8 @@ class _ReportScreenState extends State<ReportScreen>
     final doc = pw.Document();
     final totalFc = rows.fold<double>(0, (s, r) => s + (r['grandTotal'] as double? ?? 0));
     final totalUsd = rows.fold<double>(0, (s, r) => s + (r['grandTotalUsd'] as double? ?? 0));
+    final summary = (profitData?['summary'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+    final expenses = (profitData?['expenses'] as List?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(28),
@@ -421,6 +467,57 @@ class _ReportScreenState extends State<ReportScreen>
             ),
           ],
         ),
+        if (summary.isNotEmpty) ...[
+          pw.SizedBox(height: 16),
+          pw.Text('Profit & Loss Summary',
+              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 6),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(3),
+              1: const pw.FlexColumnWidth(2),
+            },
+            children: [
+              _pdfHeaderRow(['Metric', 'Amount (FC)']),
+              _pdfDataRow(['Net Sales', _fmtFc(summary['salesNet'] as double? ?? 0)], isEven: true),
+              _pdfDataRow(['Cost of Goods', _fmtFc(summary['costOfGoods'] as double? ?? 0)]),
+              _pdfDataRow(['Gross Profit', _fmtFc(summary['grossProfit'] as double? ?? 0)], isEven: true),
+              _pdfDataRow(['Operating Expenses', _fmtFc(summary['expenses'] as double? ?? 0)]),
+              _pdfDataRow([
+                'Net Profit / Loss',
+                _fmtFc(summary['netProfit'] as double? ?? 0),
+              ], isEven: true),
+            ],
+          ),
+        ],
+        if (expenses.isNotEmpty) ...[
+          pw.SizedBox(height: 16),
+          pw.Text('Expense Details',
+              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 6),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(1.8),
+              1: const pw.FlexColumnWidth(2.2),
+              2: const pw.FlexColumnWidth(3.6),
+              3: const pw.FlexColumnWidth(1.6),
+            },
+            children: [
+              _pdfHeaderRow(['Date', 'Category', 'Description', 'FC']),
+              ...expenses.asMap().entries.map((e) {
+                final r = e.value;
+                return _pdfDataRow([
+                  _fmtDate(r['date'] as DateTime),
+                  r['category']?.toString() ?? 'Uncategorized',
+                  r['description']?.toString() ?? '',
+                  _fmtFc(r['amount'] as double? ?? 0),
+                ], isEven: e.key.isEven);
+              }),
+            ],
+          ),
+        ],
       ],
     ));
     await Printing.layoutPdf(
@@ -785,7 +882,26 @@ class _ReportScreenState extends State<ReportScreen>
             pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [pw.Text('Monnaie:', style: norm(9)), pw.Text('FC ${change.toStringAsFixed(0)}', style: bold(9))]),
           pw.SizedBox(height: 6),
+          pw.Center(
+            child: pw.BarcodeWidget(
+              barcode: Barcode.code128(),
+              data: txn,
+              drawText: false,
+              width: pageWidth - (margin * 2),
+              height: 24,
+            ),
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(txn, style: norm(7)),
+          pw.SizedBox(height: 6),
           pw.Center(child: pw.Text(footer, style: norm(9), textAlign: pw.TextAlign.center)),
+          pw.SizedBox(height: 3),
+          pw.Text('Developed by',
+              style: pw.TextStyle(fontSize: 6, color: PdfColors.grey600),
+              textAlign: pw.TextAlign.center),
+          pw.Text('www.taqiabbas.com',
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+              textAlign: pw.TextAlign.center),
           pw.SizedBox(height: 4),
         ],
       ),
@@ -842,11 +958,16 @@ class _ReportScreenState extends State<ReportScreen>
           _SalesReportTab(
             start: _salesStart,
             end: _salesEnd,
+            selectedCashierId: _salesCashierId,
             onPickRange: () => _pickDateRange(_salesStart, _salesEnd, (s, e) {
               setState(() { _salesStart = s; _salesEnd = e; });
               _loadTab(1);
             }),
-            onExportPdf: (rows) => _exportSalesPdf(rows),
+            onCashierChanged: (id) {
+              setState(() => _salesCashierId = id);
+              _loadTab(1);
+            },
+            onExportPdf: (rows, profitData) => _exportSalesPdf(rows, profitData),
           ),
           _CustomerLedgerTab(
             onExportPdf: (rows) => _exportCustomerLedgerPdf(rows),
@@ -1035,6 +1156,34 @@ class _OverviewTab extends StatelessWidget {
                 _SummaryCards(ds.dailySummary!)
               else
                 const Text('No sales data for this date.'),
+              const SizedBox(height: 20),
+              Text('Daily Transactions', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              if (ds.salesReport == null || ds.salesReport!.isEmpty)
+                const Text('No transactions for this date.', style: TextStyle(color: Colors.grey))
+              else
+                Card(
+                  child: SizedBox(
+                    height: 220,
+                    child: ListView.separated(
+                      itemCount: ds.salesReport!.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, i) {
+                        final r = ds.salesReport![i];
+                        return ListTile(
+                          dense: true,
+                          title: Text(r['transactionNumber']?.toString() ?? '',
+                              style: const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: Text(r['customerName']?.toString() ?? 'Walk-in'),
+                          trailing: Text(
+                            'FC ${(r['grandTotal'] as double? ?? 0).toStringAsFixed(0)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
               const SizedBox(height: 32),
               Text('Inventory Value', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
@@ -1104,13 +1253,17 @@ class _SummaryCards extends StatelessWidget {
 
 class _SalesReportTab extends StatelessWidget {
   final DateTime start, end;
+  final int? selectedCashierId;
   final VoidCallback onPickRange;
-  final void Function(List<Map<String, dynamic>>) onExportPdf;
+  final ValueChanged<int?> onCashierChanged;
+  final void Function(List<Map<String, dynamic>>, Map<String, dynamic>?) onExportPdf;
 
   const _SalesReportTab({
     required this.start,
     required this.end,
+    required this.selectedCashierId,
     required this.onPickRange,
+    required this.onCashierChanged,
     required this.onExportPdf,
   });
 
@@ -1120,14 +1273,62 @@ class _SalesReportTab extends StatelessWidget {
       builder: (context, state) {
         final ds = state is ReportDataState ? state : const ReportDataState();
         final rows = ds.salesReport ?? [];
+        final profitData = ds.salesProfitReport;
+        final summary = (profitData?['summary'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+        final cashierRows = (profitData?['byCashier'] as List?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+        final cashierIds = cashierRows.map((c) => c['cashierId'] as int?).toSet();
+        final effectiveCashierId = cashierIds.contains(selectedCashierId) ? selectedCashierId : null;
         return Column(children: [
-          _ReportToolbar(
-            label: '${_fmtDate(start)} – ${_fmtDate(end)}',
-            onPickRange: onPickRange,
-            isLoading: ds.isLoadingSalesReport,
-            hasData: rows.isNotEmpty,
-            onExport: () => onExportPdf(rows),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.date_range, size: 16),
+                  label: Text('${_fmtDate(start)} – ${_fmtDate(end)}'),
+                  onPressed: onPickRange,
+                ),
+                DropdownButton<int?>(
+                  value: effectiveCashierId,
+                  hint: const Text('All Cashiers'),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('All Cashiers')),
+                    ...cashierRows.map((c) => DropdownMenuItem<int?>(
+                          value: c['cashierId'] as int?,
+                          child: Text(c['cashierName']?.toString() ?? 'Unknown'),
+                        )),
+                  ],
+                  onChanged: onCashierChanged,
+                ),
+                if (rows.isNotEmpty)
+                  FilledButton.icon(
+                    onPressed: () => onExportPdf(rows, profitData),
+                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                    label: const Text('Export PDF'),
+                  ),
+              ],
+            ),
           ),
+          if (ds.isLoadingSalesProfitReport)
+            const LinearProgressIndicator(),
+          if (summary.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  _StatChip('Net Sales', _fmtFc(summary['salesNet'] as double? ?? 0), Colors.blue),
+                  _StatChip('COGS', _fmtFc(summary['costOfGoods'] as double? ?? 0), Colors.orange),
+                  _StatChip('Expenses', _fmtFc(summary['expenses'] as double? ?? 0), Colors.deepPurple),
+                  _StatChip('Net Profit/Loss', _fmtFc(summary['netProfit'] as double? ?? 0),
+                      (summary['netProfit'] as double? ?? 0) >= 0 ? Colors.green : Colors.red),
+                ],
+              ),
+            ),
           Expanded(
             child: ds.isLoadingSalesReport
                 ? const Center(child: CircularProgressIndicator())
@@ -1189,6 +1390,32 @@ class _SalesReportTab extends StatelessWidget {
             ),
         ]);
       },
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _StatChip(this.label, this.value, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withAlpha(70)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
     );
   }
 }

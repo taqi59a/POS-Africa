@@ -2,9 +2,11 @@ import '../../../../core/data/database/app_database.dart';
 
 abstract class ReportRepository {
   Future<Map<String, double>> getDailySalesSummary(DateTime date);
+  Future<List<Map<String, dynamic>>> getDailySalesDetailed(DateTime date);
   Future<List<Map<String, dynamic>>> getTopSellingProducts(DateTime start, DateTime end, int limit);
   Future<double> getInventoryTotalValuation();
   Future<Map<String, double>> getExpenseSummary(DateTime start, DateTime end);
+  Future<Map<String, dynamic>> getSalesAndProfitReport(DateTime start, DateTime end, {int? cashierId});
   // Extended reports
   Future<List<Map<String, dynamic>>> getSalesReport(DateTime start, DateTime end);
   Future<List<Map<String, dynamic>>> getCustomerLedger();

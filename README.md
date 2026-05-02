@@ -60,6 +60,22 @@ Installer output:
 
 Users can install from this single EXE.
 
+## Update Compatibility (Important)
+
+For every future update request, enforce upgrade compatibility with already
+installed versions.
+
+Use this baseline document before implementing changes:
+
+`UPDATE_COMPATIBILITY_BASELINE.md`
+
+This includes rules for:
+
+- Installer identity stability (`AppId`)
+- Database path and migration safety
+- Backup/restore compatibility
+- License algorithm and `license.dat` compatibility
+
 ## Automated EXE Production (GitHub Actions)
 
 This repository includes a Windows CI workflow at:

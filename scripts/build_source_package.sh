@@ -180,13 +180,13 @@ FOR A PROPER INSTALLER EXE (optional):
 FIRST LOGIN
 -----------
 Username: admin
-Password: admin123
+Password: master
 (You will be asked to change the password on first login)
 
 DATA STORAGE
 ------------
 The database is stored in:
-  %APPDATA%\\POS Africa\\
+   %USERPROFILE%\\Documents\\CongoPOS\\db.sqlite
 EOF
 
 # ── Create ZIP ────────────────────────────────────────────────────────────────

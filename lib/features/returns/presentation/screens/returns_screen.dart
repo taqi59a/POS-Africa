@@ -340,8 +340,9 @@ class _NewReturnTabState extends State<_NewReturnTab> {
                     Expanded(
                       child: TextField(
                         controller: _searchCtrl,
+                        autofocus: true,
                         decoration: const InputDecoration(
-                          labelText: 'Search by invoice # or customer name',
+                          labelText: 'Scan receipt barcode / invoice # / customer',
                           prefixIcon: Icon(Icons.find_in_page_rounded),
                           border: OutlineInputBorder(),
                         ),
