@@ -191,13 +191,16 @@ jobs:
           name: installer-${{ steps.version.outputs.version }}
           path: ${{ steps.installer.outputs.path }}
           retention-days: 90
+          overwrite: true
 
       - name: Upload portable artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: portable-${{ steps.version.outputs.version }}
           path: ${{ steps.portable.outputs.path }}
           retention-days: 90
+          overwrite: true
 
       # ── 13. Build KeyGen Admin EXE (Python / PyInstaller) ───────────────────
       - name: Set up Python 3.12
@@ -241,6 +244,7 @@ jobs:
           name: keygen-admin-${{ steps.version.outputs.version }}
           path: ${{ steps.keygen.outputs.path }}
           retention-days: 90
+          overwrite: true
 
       # ── 14. Publish GitHub Release (tag builds only) ─────────────────────────
       - name: Create GitHub release
