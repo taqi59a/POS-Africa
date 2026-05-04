@@ -213,7 +213,15 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
     final idx = state.cart.indexWhere((i) => i.product.id == event.product.id);
     if (idx >= 0) {
       final newCart = List<CartItem>.from(state.cart);
-      newCart[idx] = newCart[idx].copyWith(quantity: newCart[idx].quantity + 1);
+      final old = newCart[idx];
+      // Refresh the product reference so any inventory price updates are
+      // reflected immediately, while preserving any cashier-applied override.
+      newCart[idx] = CartItem(
+        product: event.product,
+        quantity: old.quantity + 1,
+        discount: old.discount,
+        unitPriceOverride: old.unitPriceOverride,
+      );
       emit(state.copyWith(cart: newCart));
     } else {
       emit(state.copyWith(cart: [...state.cart, CartItem(product: event.product, quantity: 1)]));

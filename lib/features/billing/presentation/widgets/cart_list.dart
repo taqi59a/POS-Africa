@@ -38,7 +38,16 @@ class CartList extends StatelessWidget {
             FilledButton(
               onPressed: () {
                 final parsed = double.tryParse(ctrl.text.trim());
-                if (parsed == null || parsed <= 0) return;
+                if (parsed == null || parsed <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invalid price — enter digits only, no spaces or commas (e.g. 225000).'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  return;
+                }
                 if (parsed < item.product.costPrice) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
