@@ -188,6 +188,7 @@ Billing (POS):
 - Payment capture records
 - Sale line persistence
 - All monetary amounts stored and displayed in FC (Congolese Franc); USD shown as secondary where dual-currency is enabled
+- **Bill-total override:** cashier can tap the BILL TOTAL field in the payment dialog and type any amount above the cart total; the overridden value becomes the authoritative `grandTotal` stored in the DB and shown on the receipt. The per-line prices in `sale_lines` are unchanged (catalog prices). Reports aggregate `sales.grandTotal` so override revenue is captured correctly. Next sale resets to the new cart total automatically.
 
 Inventory:
 - Product/category/supplier linked catalog

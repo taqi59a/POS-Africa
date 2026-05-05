@@ -9,6 +9,17 @@ new releases remain safe for already-installed versions.
 - Existing user databases and backups.
 - Existing license files and key generation workflow.
 
+## Recent Changes Log
+
+### 2026-05-05 — Bill-total override (payment dialog)
+- No schema changes. `schemaVersion` remains 5.
+- `sales.grandTotal` / `sales.subtotal` now store the cashier-entered override
+  amount when it differs from the cart total. `sales.discountAmount` is set to 0
+  in that case. All existing report queries read `grandTotal` and are unaffected.
+- `sale_lines` rows continue to store the original catalog unit prices; the
+  override is a sale-level adjustment only.
+- No changes to installer, DB path, license, or backup logic.
+
 ## Compatibility Invariants
 
 1. Installer identity must stay stable.

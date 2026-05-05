@@ -126,6 +126,9 @@ class CompleteSale extends SalesEvent {
   final double grandTotalUsd;
   final double exchangeRate;
   final double vatAmount;
+  /// When set, overrides the cart-derived grand total (e.g. cashier selling
+  /// at a custom price higher than the listed product price).
+  final double? overrideGrandTotal;
   const CompleteSale({
     required this.cashierId,
     this.customerId,
@@ -133,6 +136,7 @@ class CompleteSale extends SalesEvent {
     required this.grandTotalUsd,
     required this.exchangeRate,
     this.vatAmount = 0,
+    this.overrideGrandTotal,
   });
 }
 
@@ -270,15 +274,20 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
     try {
       final trxNumber = await _repo.generateTransactionNumber();
 
+      // When the cashier overrides the charge (e.g. elevated customer price),
+      // use that value as the authoritative grand total for storage and receipts.
+      final effectiveTotal    = event.overrideGrandTotal ?? state.grandTotal;
+      final effectiveTotalUsd = effectiveTotal / event.exchangeRate;
+
       final saleCompanion = SalesCompanion.insert(
         transactionNumber: trxNumber,
         cashierId: Value(event.cashierId),
         customerId: Value(event.customerId),
-        subtotal: Value(state.subtotal),
-        discountAmount: Value(state.totalDiscount),
+        subtotal:      Value(event.overrideGrandTotal != null ? effectiveTotal  : state.subtotal),
+        discountAmount: Value(event.overrideGrandTotal != null ? 0.0            : state.totalDiscount),
         vatAmount: Value(event.vatAmount),
-        grandTotal: Value(state.grandTotal),
-        grandTotalUsd: Value(event.grandTotalUsd),
+        grandTotal:    Value(effectiveTotal),
+        grandTotalUsd: Value(effectiveTotalUsd),
         exchangeRateUsed: Value(event.exchangeRate),
       );
 
@@ -298,16 +307,16 @@ class SalesBloc extends Bloc<SalesEvent, SalesState> {
         saleId: saleId,
         transactionNumber: trxNumber,
         items: List<CartItem>.from(state.cart),
-        subtotal: state.subtotal,
-        discount: state.totalDiscount,
+        subtotal:  event.overrideGrandTotal != null ? effectiveTotal       : state.subtotal,
+        discount:  event.overrideGrandTotal != null ? 0.0                 : state.totalDiscount,
         vatAmount: event.vatAmount,
-        grandTotal: state.grandTotal,
-        grandTotalUsd: event.grandTotalUsd,
+        grandTotal:    effectiveTotal,
+        grandTotalUsd: effectiveTotalUsd,
         exchangeRate: event.exchangeRate,
         paymentMethod: event.payments.isNotEmpty ? event.payments.first.method.value : 'CASH',
         amountTendered: event.payments.isNotEmpty
-            ? (event.payments.first.amountTendered.value ?? state.grandTotal)
-            : state.grandTotal,
+            ? (event.payments.first.amountTendered.value ?? effectiveTotal)
+            : effectiveTotal,
         changeDue: event.payments.isNotEmpty
             ? (event.payments.first.changeDue.value ?? 0)
             : 0,

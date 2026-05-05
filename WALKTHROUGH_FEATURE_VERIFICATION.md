@@ -91,6 +91,8 @@ Mark each item after running it on Windows.
 - [ ] Complete sale with payment.
 - [ ] Sale lines are saved.
 - [ ] Stock levels update after sale.
+- [ ] **Bill-total override:** tap the BILL TOTAL field, type a higher amount (e.g. 200000 on a 180000 cart), verify AMOUNT TO PAY updates, Markup hint appears, and the sale record stores the overridden total (not the cart total).
+- [ ] Confirm next sale opens with a fresh cart-derived total (no state carried over).
 
 ### 8. Expenses
 - [ ] Add expense category.
@@ -100,6 +102,7 @@ Mark each item after running it on Windows.
 ### 9. Reports
 - [ ] Open reports screen with no crash.
 - [ ] Sales summary reflects recent transactions.
+- [ ] After a bill-total-override sale, verify the overridden amount appears in daily revenue totals (not the cart price).
 - [ ] Expense-related values appear correctly.
 
 ### 10. Audit Log
